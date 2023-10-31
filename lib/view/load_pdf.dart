@@ -35,13 +35,26 @@ class LoadPdf{
 
 
   ///тут и на будущее в просмотрщики получить List<Image>
-  Future<List<Image>> loadAssetAsList({required String pathPdf})async{
+  Future<List<Image>> loadAssetAsList({required String pathPdf, int ration = 1, String backgroundColor = '#FF0B1730'})async{
     List<Image> result = [];
     final pdfium = PdfiumWrap(libraryPath: libraryPath);
     final bytes = (await rootBundle.load(pathPdf)).buffer.asUint8List();
     int pageCount = pdfium.loadDocumentFromBytes(bytes).getPageCount();
+    int width = (pdfium.getPageWidth() * ration).toInt();
+    int height = (pdfium.getPageHeight() * ration).toInt();
     for(int i = 0; i < pageCount; i++){
-
+      Uint8List bytesRend = pdfium
+          .loadDocumentFromBytes(bytes)
+          .loadPage(i)
+          .renderPageAsBytes(width, height, backgroundColor:  int.parse(backgroundColor, radix: 16), flags: 1);
+      result.add(
+        Image.memory(
+          bytesRend,
+          fit: BoxFit.contain,
+          colorBlendMode: BlendMode.modulate,
+          gaplessPlayback: true,
+        ),
+      );
     }
     return result;
   }
