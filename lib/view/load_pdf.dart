@@ -47,7 +47,7 @@ class LoadPdf{
     }else if(Platform.isMacOS){
       libraryPath = 'libpdfium.dylib';
     }else if(Platform.isIOS){
-      libraryPath = 'libpdfium_ios.dylib';
+      libraryPath = 'libpdfium_ios_x64.dylib';
     }else if(Platform.isWindows){
       libraryPath = path.join(Directory.current.path, 'pdfium.dll');
     }else if(Platform.isLinux){
@@ -55,25 +55,31 @@ class LoadPdf{
     }
     final pdfium = PdfiumWrap(libraryPath: libraryPath);
     final bytes = (await rootBundle.load(pathPdf)).buffer.asUint8List();
-    print(bytes.length);
-    int pageCount = pdfium.loadDocumentFromBytes(bytes).getPageCount();
-    int width = (pdfium.getPageWidth() * ration).toInt();
-    int height = (pdfium.getPageHeight() * ration).toInt();
+    print('длина фалйа в байтах ${bytes.length}');
+    PdfiumWrap document = pdfium.loadDocumentFromBytes(bytes);
+    int pageCount = document.getPageCount();
+    //int width = (document.getPageWidth() * ration).toInt();
+    //int height = (document.getPageHeight() * ration).toInt();
+    //print('$pageCount $width $height');
     for(int i = 0; i < pageCount; i++){
       print('обработали страницу $i');
-      Uint8List bytesRend = pdfium
-          .loadDocumentFromBytes(bytes)
-          .loadPage(i)
-          .renderPageAsBytes(width, height, backgroundColor:  int.parse(backgroundColor, radix: 16), flags: 1);
+      ///Uint8List bytesRend =
+      document.loadPage(i)
+          //.renderPageAsBytes(300, 400, /*backgroundColor:  int.parse(backgroundColor, radix: 16),*/ flags: 1);
+          .savePageAsJpg('${directory.path}/out$i.jpg', qualityJpg: 80, flags: 1)
+          .closePage();
       result.add(
-        Image.memory(
-          bytesRend,
-          fit: BoxFit.contain,
-          colorBlendMode: BlendMode.modulate,
-          gaplessPlayback: true,
-        ),
+        // Image.memory(
+        //   bytesRend,
+        //   fit: BoxFit.contain,
+        //   colorBlendMode: BlendMode.modulate,
+        //   gaplessPlayback: true,
+        // ),
+        !Platform.isAndroid ? Image.asset('${directory.path}/out$i.jpg')
+          : Image.file(File('${directory.path}/out$i.jpg'))
       );
     }
+    document.closeDocument().dispose();
     return result;
   }
 
@@ -100,7 +106,7 @@ class LoadPdf{
     ///TODO загрузка из ассета, но нам может понадобиться загрузка из локального хранилища
     final bytes = (await rootBundle.load(pathPdf)).buffer.asUint8List();
     ///получить количество страниц
-    print(pdfium.loadDocumentFromBytes(bytes).getPageCount());
+    ///print(pdfium.loadDocumentFromBytes(bytes).getPageCount());
 
     ///TODO циклом собрать массив отрендеренных страниц для отображения
 
@@ -127,7 +133,7 @@ class LoadPdf{
       File file = File("${dir.path}/$filename");
       var data = await rootBundle.load(asset);
       var bytes = data.buffer.asUint8List();
-      print(bytes.length);
+      print('длина фалйа в байтах 2 ${bytes.length}');
       await file.writeAsBytes(bytes, flush: true);
       completer.complete(file);
     } catch (e) {
@@ -148,7 +154,7 @@ class LoadPdf{
       ///TODO загрузка из ассета, но нам может понадобиться загрузка из локального хранилища
       var data = await rootBundle.load(asset);
       var bytes = data.buffer.asUint8List();
-      print('длина фалйа в байтах ${bytes.length}');
+      print('длина фалйа в байтах 2 ${bytes.length}');
       await file.writeAsBytes(bytes, flush: true);
       completer.complete(file);
     } catch (e) {
@@ -176,7 +182,7 @@ class LoadPdf{
           future: fromAssetIOS_Android(pathPdf, 'result.pdf'),
           builder: (context, snapshot) {
             if(snapshot.hasData){
-              print(snapshot.data!.path);
+             // print(snapshot.data!.path);
             }else{
               print('нет данных');
             }
@@ -189,7 +195,7 @@ class LoadPdf{
           future: loadAssetAll(pathPdf: pathPdf,),
           builder: (context, snapshot) {
             if(snapshot.hasData){
-              print(snapshot.data!);
+             // print(snapshot.data!);
             }else{
               print('нет данных');
             }
