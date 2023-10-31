@@ -37,3 +37,10 @@ const like = 'sample';
 TODO: Tell users more about the package: where to find more information, how to
 contribute to the package, how to file issues, what response they can expect
 from the package authors, and more.
+
+web pdfx - launcher
+ios flutter_pdfview 1.3.2
+android flutter_pdfview 1.3.2 и PDFium_LIBRARY
+windows - PDFium_LIBRARY  pdfx отображает аннотации
+linux -  PDFium_LIBRARY
+mac os - flutter_pdfview 1.3.2 (m1 - m2) и PDFium_LIBRARY

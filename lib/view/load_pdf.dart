@@ -13,10 +13,11 @@ import 'package:flutter/material.dart';
 ///бинарники бибилотек https://github.com/bblanchon/pdfium-binaries
 
 class LoadPdf{
-  String libraryPath = '';
+
 
   ///устанавливаем путь к используемой бибилотеке
   setLibraryPath()async{
+    String libraryPath = '';
     final directory = await getApplicationDocumentsDirectory();
     if(Platform.isAndroid){
       libraryPath = '${directory.path}/libpdfium.so';
@@ -36,13 +37,30 @@ class LoadPdf{
 
   ///тут и на будущее в просмотрщики получить List<Image>
   Future<List<Image>> loadAssetAsList({required String pathPdf, int ration = 1, String backgroundColor = '#FF0B1730'})async{
+    print(45345345);
     List<Image> result = [];
+    //await setLibraryPath();
+    String libraryPath = '';
+    final directory = await getApplicationDocumentsDirectory();
+    if(Platform.isAndroid){
+      libraryPath = '${directory.path}/libpdfium.so';
+    }else if(Platform.isMacOS){
+      libraryPath = 'libpdfium.dylib';
+    }else if(Platform.isIOS){
+      libraryPath = 'libpdfium_ios.dylib';
+    }else if(Platform.isWindows){
+      libraryPath = path.join(Directory.current.path, 'pdfium.dll');
+    }else if(Platform.isLinux){
+      libraryPath = path.join(Directory.current.path, 'libpdfium.so');
+    }
     final pdfium = PdfiumWrap(libraryPath: libraryPath);
     final bytes = (await rootBundle.load(pathPdf)).buffer.asUint8List();
+    print(bytes.length);
     int pageCount = pdfium.loadDocumentFromBytes(bytes).getPageCount();
     int width = (pdfium.getPageWidth() * ration).toInt();
     int height = (pdfium.getPageHeight() * ration).toInt();
     for(int i = 0; i < pageCount; i++){
+      print('обработали страницу $i');
       Uint8List bytesRend = pdfium
           .loadDocumentFromBytes(bytes)
           .loadPage(i)
@@ -62,8 +80,20 @@ class LoadPdf{
 
   ///загрузка файла из ассета для всех ОС кроме ИОС и Web
   Future<String> loadAssetAll({required String pathPdf}) async {
-    await setLibraryPath();
+    //await setLibraryPath();
+    String libraryPath = '';
     final directory = await getApplicationDocumentsDirectory();
+    if(Platform.isAndroid){
+      libraryPath = '${directory.path}/libpdfium.so';
+    }else if(Platform.isMacOS){
+      libraryPath = 'libpdfium.dylib';
+    }else if(Platform.isIOS){
+      libraryPath = 'libpdfium_ios.dylib';
+    }else if(Platform.isWindows){
+      libraryPath = path.join(Directory.current.path, 'pdfium.dll');
+    }else if(Platform.isLinux){
+      libraryPath = path.join(Directory.current.path, 'libpdfium.so');
+    }
 
 
     final pdfium = PdfiumWrap(libraryPath: libraryPath);
@@ -158,7 +188,11 @@ class LoadPdf{
       return FutureBuilder<String>(
           future: loadAssetAll(pathPdf: pathPdf,),
           builder: (context, snapshot) {
-            print(345345);
+            if(snapshot.hasData){
+              print(snapshot.data!);
+            }else{
+              print('нет данных');
+            }
             return !snapshot.hasData || snapshot.data is !String
                 ? const Center( child: SizedBox(width: 60, height: 60, child: CircularProgressIndicator()))
                 :  Image.asset(snapshot.data!);
