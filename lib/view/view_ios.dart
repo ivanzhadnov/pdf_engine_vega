@@ -15,6 +15,9 @@ class PDFViewer_iOS extends StatefulWidget {
 }
 
 class PDFViewer_iOSState extends State<PDFViewer_iOS> {
+
+  late PDFViewController _controller;
+
   @override
   void initState() {
     super.initState();
@@ -23,6 +26,7 @@ class PDFViewer_iOSState extends State<PDFViewer_iOS> {
   @override
   Widget build(BuildContext context) {
     return PDFView(
+      pdfData: null,
       filePath: widget.file.path,
       enableSwipe: true,
       swipeHorizontal: true,
@@ -32,11 +36,11 @@ class PDFViewer_iOSState extends State<PDFViewer_iOS> {
       defaultPage: widget.defaultPage!,
       fitPolicy: FitPolicy.BOTH,
       preventLinkNavigation: false,
-      // if set to true the link is handled in flutter
       onRender: (_pages) {},
       onError: (error) {},
       onPageError: (page, error) {},
       onViewCreated: (PDFViewController pdfViewController) {
+        _controller = pdfViewController;
         //_controller.complete(pdfViewController);
       },
       onLinkHandler: (String? uri) {},

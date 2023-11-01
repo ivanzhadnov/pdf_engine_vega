@@ -7,6 +7,7 @@ import 'package:pdfium_bindings/pdfium_bindings.dart';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter/material.dart';
+import 'package:pdfx/pdfx.dart';
 
 
 
@@ -14,32 +15,92 @@ import 'package:flutter/material.dart';
 
 class LoadPdf{
 
-
-  ///устанавливаем путь к используемой бибилотеке
-  setLibraryPath()async{
-    String libraryPath = '';
-    final directory = await getApplicationDocumentsDirectory();
-    if(Platform.isAndroid){
-      libraryPath = '${directory.path}/libpdfium.so';
-    }else if(Platform.isMacOS){
-      libraryPath = 'libpdfium.dylib';
-    }else if(Platform.isIOS){
-      libraryPath = 'libpdfium_ios.dylib';
-    }else if(Platform.isWindows){
-      libraryPath = path.join(Directory.current.path, 'pdfium.dll');
-    }else if(Platform.isLinux){
-      libraryPath = path.join(Directory.current.path, 'libpdfium.so');
+  Future<List<Image>>getPagesListImage({required String pathPdf, int ration = 1, String backgroundColor = '#FF0B1730'})async{
+    List<Image> result = [];
+    if(Platform.isIOS){
+      result = await loadAssetAsListIOS(pathPdf: pathPdf, ration: ration, backgroundColor: backgroundColor);
+    }else{
+      result = await loadAssetAsList(pathPdf: pathPdf, ration: ration, backgroundColor: backgroundColor);
     }
-    return true;
+    return result;
+  }
+
+  ///получить количество страниц в документе
+  Future<int>getPageCount({required String pathPdf,})async{
+    int count = 0;
+    try{
+      PdfDocument _pdfDocument = await PdfDocument.openFile(pathPdf);
+      count = _pdfDocument.pagesCount;
+      await _pdfDocument.close();
+    }catch(e){}
+
+    return count;
+  }
+
+  ///получить байты
+  Future<Uint8List>getBytesFromAsset({required String pathPdf, int ration = 1, String backgroundColor = '#FFFFFFFF', required int page})async{
+    Uint8List bytes = Uint8List(0);
+    PdfDocument _pdfDocument = await PdfDocument.openFile(pathPdf);
+    try {
+      final pdfPage = await _pdfDocument.getPage(page);
+      final pdfWidth = pdfPage.width * ration;
+      final pdfHeight = pdfPage.height * ration;
+      final image = await pdfPage.render(
+        width: pdfWidth,
+        height: pdfHeight,
+        format: PdfPageImageFormat.png,
+        backgroundColor: '#FFFFFFFF',
+      );
+      bytes = image!.bytes;
+    }
+    catch (e) {
+      debugPrint('Load UserAgreement from Assets error: $e');
+    }
+    await _pdfDocument.close();
+    return bytes;
+  }
+
+  ///тут и на будущее в просмотрщики получить List<Image> for iOS
+  Future<List<Image>>loadAssetAsListIOS({required String pathPdf, int ration = 1, String backgroundColor = '#FFFFFFFF'})async{
+    PdfDocument _pdfDocument = await PdfDocument.openAsset(pathPdf);
+    final pageCount = _pdfDocument.pagesCount;
+    List<Image> result = [];
+    for (int i = 1; i <= pageCount; i++) {
+      try {
+        final pdfPage = await _pdfDocument.getPage(i);
+        final pdfWidth = pdfPage.width * ration;
+        final pdfHeight = pdfPage.height * ration;
+        final image = await pdfPage.render(
+          width: pdfWidth,
+          height: pdfHeight,
+          format: PdfPageImageFormat.png,
+          backgroundColor: backgroundColor,
+          quality: 100,
+          cropRect: i == 4 ? Rect.fromLTWH(0, 0, pdfWidth, 140) : null,
+        );
+        final bytes = image!.bytes;
+        result.add(
+          Image.memory(
+            bytes,
+            fit: BoxFit.contain,
+            colorBlendMode: BlendMode.modulate,
+            gaplessPlayback: true,
+          ),
+        );
+      }
+      catch (e) {
+        debugPrint('Load UserAgreement from Assets error: $e');
+      }
+    }
+    await _pdfDocument.close();
+    return result;
   }
 
 
-
   ///тут и на будущее в просмотрщики получить List<Image>
-  Future<List<Image>> loadAssetAsList({required String pathPdf, int ration = 1, String backgroundColor = '#FF0B1730'})async{
-    print(45345345);
+  Future<List<Image>> loadAssetAsList({required String pathPdf, int ration = 1, String backgroundColor = '#FFFFFFFF'})async{
+
     List<Image> result = [];
-    //await setLibraryPath();
     String libraryPath = '';
     final directory = await getApplicationDocumentsDirectory();
     if(Platform.isAndroid){
@@ -86,7 +147,6 @@ class LoadPdf{
 
   ///загрузка файла из ассета для всех ОС кроме ИОС и Web
   Future<String> loadAssetAll({required String pathPdf}) async {
-    //await setLibraryPath();
     String libraryPath = '';
     final directory = await getApplicationDocumentsDirectory();
     if(Platform.isAndroid){
