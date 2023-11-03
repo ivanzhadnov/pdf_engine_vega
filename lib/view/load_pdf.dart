@@ -56,7 +56,7 @@ class LoadPdf{
     catch (e) {
       debugPrint('Load UserAgreement from Assets error: $e');
     }
-    await _pdfDocument.close();
+    if(Platform.isAndroid)await _pdfDocument.close();
     return bytes;
   }
 
