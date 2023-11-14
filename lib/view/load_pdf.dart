@@ -116,7 +116,17 @@ class LoadPdf{
       libraryPath = file.path;
 
     }else if(Platform.isMacOS){
-      libraryPath = 'libpdfium.dylib';
+      ///имя файла
+      String libFileName = 'libpdfium.dylib';
+      ///создаем путь где должен лежать файл
+      final Directory docDir = await getApplicationDocumentsDirectory();
+      final String localPath = docDir.path;
+      String targetPath = path.join(localPath, libFileName);
+      print(targetPath);
+      ///проверяем есть ли файл
+      bool exists = await File(targetPath).exists();
+      print(exists);
+      libraryPath = targetPath;
     }else if(Platform.isIOS){
       libraryPath = 'libpdfium_ios_x64.dylib';
     }else if(Platform.isWindows){
@@ -166,26 +176,15 @@ List<String> filesPaths = [];
     else if(Platform.isMacOS){
       ///имя файла
        String libFileName = 'libpdfium.dylib';
-      ///создаем путь где лежит резервная копия файла
-      String sorcePath = path.join('assets', 'libpdf',libFileName);
       ///создаем путь где должен лежать файл
-      final Directory docDir = await getApplicationDocumentsDirectory();
-      final String localPath = docDir.path;
-      String targetPath = path.join(localPath, libFileName);
+       final Directory docDir = await getApplicationDocumentsDirectory();
+       final String localPath = docDir.path;
+       String targetPath = path.join(localPath, libFileName);
+       print(targetPath);
       ///проверяем есть ли файл
       bool exists = await File(targetPath).exists();
       print(exists);
-      print(await getLibraryDirectory());
-      ///если файла нету, копируем его туда из ассета
-      if(!exists){
-         print('скопировали файл');
-        File _file = File(sorcePath);
-        _file.copy(targetPath);
-       }
       libraryPath = targetPath;
-
-
-
     }
     else if(Platform.isIOS){
       libraryPath = 'libpdfium_ios.dylib';
@@ -282,7 +281,6 @@ for(int i = 0; i < countPages; i++){
         return FutureBuilder<List<String>>(
             future: loadAssetAll(pathPdf: pathPdf,),
             builder: (context, snapshot) {
-print(snapshot.data);
               return !snapshot.hasData
                   ? const Center( child: SizedBox(width: 60, height: 60, child: CircularProgressIndicator()))
                   :  SingleChildScrollView(
