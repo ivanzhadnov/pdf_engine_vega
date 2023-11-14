@@ -56,7 +56,7 @@ class LoadPdf{
     catch (e) {
       debugPrint('Load UserAgreement from Assets error: $e');
     }
-    await _pdfDocument.close();
+    //await _pdfDocument.close();
     return bytes;
   }
 
@@ -104,7 +104,17 @@ class LoadPdf{
     String libraryPath = '';
     final directory = await getApplicationDocumentsDirectory();
     if(Platform.isAndroid){
-      libraryPath = '${directory.path}/libpdfium.so';
+
+      final String localPath = directory.path;
+      File file = File(localPath + '/libpdfium_android.so');
+      bool exist = await file.exists();
+      if(!exist){
+        final asset = await rootBundle.load('assets/libpdf/libpdfium_android.so');
+        final buffer = asset.buffer;
+        await file.writeAsBytes(buffer.asUint8List(asset.offsetInBytes, asset.lengthInBytes));
+      }
+      libraryPath = file.path;
+
     }else if(Platform.isMacOS){
       libraryPath = 'libpdfium.dylib';
     }else if(Platform.isIOS){
@@ -114,28 +124,19 @@ class LoadPdf{
     }else if(Platform.isLinux){
       libraryPath = path.join(Directory.current.path, 'libpdfium.so');
     }
-    final pdfium = PdfiumWrap(libraryPath: libraryPath);
     final bytes = (await rootBundle.load(pathPdf)).buffer.asUint8List();
     print('длина фалйа в байтах ${bytes.length}');
+    final pdfium = PdfiumWrap(libraryPath: libraryPath);
+
     PdfiumWrap document = pdfium.loadDocumentFromBytes(bytes);
     int pageCount = document.getPageCount();
-    //int width = (document.getPageWidth() * ration).toInt();
-    //int height = (document.getPageHeight() * ration).toInt();
-    //print('$pageCount $width $height');
     for(int i = 0; i < pageCount; i++){
       print('обработали страницу $i');
-      ///Uint8List bytesRend =
       document.loadPage(i)
           //.renderPageAsBytes(300, 400, /*backgroundColor:  int.parse(backgroundColor, radix: 16),*/ flags: 1);
           .savePageAsJpg('${directory.path}/out$i.jpg', qualityJpg: 80, flags: 1)
           .closePage();
       result.add(
-        // Image.memory(
-        //   bytesRend,
-        //   fit: BoxFit.contain,
-        //   colorBlendMode: BlendMode.modulate,
-        //   gaplessPlayback: true,
-        // ),
         !Platform.isAndroid ? Image.asset('${directory.path}/out$i.jpg')
           : Image.file(File('${directory.path}/out$i.jpg'))
       );
@@ -145,42 +146,90 @@ class LoadPdf{
   }
 
 
+
   ///загрузка файла из ассета для всех ОС кроме ИОС и Web
-  Future<String> loadAssetAll({required String pathPdf}) async {
+  Future<List<String>> loadAssetAll({required String pathPdf}) async {
+List<String> filesPaths = [];
     String libraryPath = '';
     final directory = await getApplicationDocumentsDirectory();
     if(Platform.isAndroid){
-      libraryPath = '${directory.path}/libpdfium.so';
-    }else if(Platform.isMacOS){
-      libraryPath = 'libpdfium.dylib';
-    }else if(Platform.isIOS){
+      final String localPath = directory.path;
+      File file = File(localPath + '/libpdfium_android.so');
+      bool exist = await file.exists();
+      if(!exist){
+        final asset = await rootBundle.load('assets/libpdf/libpdfium_android.so');
+        final buffer = asset.buffer;
+        await file.writeAsBytes(buffer.asUint8List(asset.offsetInBytes, asset.lengthInBytes));
+      }
+      libraryPath = file.path;
+    }
+    else if(Platform.isMacOS){
+      ///имя файла
+       String libFileName = 'libpdfium.dylib';
+      ///создаем путь где лежит резервная копия файла
+      String sorcePath = path.join('assets', 'libpdf',libFileName);
+      ///создаем путь где должен лежать файл
+      final Directory docDir = await getApplicationDocumentsDirectory();
+      final String localPath = docDir.path;
+      String targetPath = path.join(localPath, libFileName);
+      ///проверяем есть ли файл
+      bool exists = await File(targetPath).exists();
+      print(exists);
+      print(await getLibraryDirectory());
+      ///если файла нету, копируем его туда из ассета
+      if(!exists){
+         print('скопировали файл');
+        File _file = File(sorcePath);
+        _file.copy(targetPath);
+       }
+      libraryPath = targetPath;
+
+
+
+    }
+    else if(Platform.isIOS){
       libraryPath = 'libpdfium_ios.dylib';
-    }else if(Platform.isWindows){
+    }
+    else if(Platform.isWindows){
       libraryPath = path.join(Directory.current.path, 'pdfium.dll');
-    }else if(Platform.isLinux){
+    }
+    else if(Platform.isLinux){
       libraryPath = path.join(Directory.current.path, 'libpdfium.so');
     }
 
+    late Uint8List bytes;
+    ///загрузка из ассета, но нам может понадобиться загрузка из локального хранилища
+    try{
+      bytes = (await rootBundle.load(pathPdf)).buffer.asUint8List();
+    }catch(e){
+      bytes = (await File(pathPdf).readAsBytes());
+    }
+
+
+    print(bytes.length);
 
     final pdfium = PdfiumWrap(libraryPath: libraryPath);
-    ///TODO загрузка из ассета, но нам может понадобиться загрузка из локального хранилища
-    final bytes = (await rootBundle.load(pathPdf)).buffer.asUint8List();
-    ///получить количество страниц
-    ///print(pdfium.loadDocumentFromBytes(bytes).getPageCount());
 
+    ///получить количество страниц
+    print(pdfium.loadDocumentFromBytes(bytes).getPageCount());
+    int countPages = pdfium.loadDocumentFromBytes(bytes).getPageCount();
     ///TODO циклом собрать массив отрендеренных страниц для отображения
 
+for(int i = 0; i < countPages; i++){
+  pdfium
+      .loadDocumentFromBytes(bytes)
+      .loadPage(i)
+  ///в частности перечислить флаг для отображения аннотаций
+      .savePageAsJpg('${directory.path}/out${i}.jpg', qualityJpg: 80, flags: 1)
+      .closePage();
+  filesPaths.add('${directory.path}/out${i}.jpg');
+}
     ///отрендерить страницы одну за другой и отправить их в какой нибудь лист вьюер
-    pdfium
-        .loadDocumentFromBytes(bytes)
-        .loadPage(1)
-    ///в частности перечислить флаг для отображения аннотаций
-        .savePageAsJpg('${directory.path}/out.jpg', qualityJpg: 80, flags: 1)
-        .closePage()
-        .closeDocument()
+
+  pdfium.closeDocument()
         .dispose();
 
-    return '${directory.path}/out.jpg';
+    return filesPaths;
   }
 
   ///загрузка файла из ассета для ИОС
@@ -202,6 +251,7 @@ class LoadPdf{
 
     return completer.future;
   }
+
 
   ///загрузка файла из ассета для ИОС
   Future<File> fromAssetWeb(String asset, String filename) async {
@@ -225,45 +275,58 @@ class LoadPdf{
   }
 
   ///выбираем тип виджета в зависимости от платформы на которой запущено приложение
-  Widget child({required String pathPdf}){
-    ///запасной вариант загрузки андроидов через FFI
-   /* if(Platform.isAndroid){
-      return FutureBuilder<String>(
-          future: loadAssetAll(pathPdf: pathPdf,),
-          builder: (context, snapshot) {
-            return !snapshot.hasData || snapshot.data is !String
-                ? const Center( child: SizedBox(width: 60, height: 60, child: CircularProgressIndicator()))
-                :  Image.file(File(snapshot.data!));
-          });
-    }
-    else */
-    if(Platform.isIOS || Platform.isAndroid){
-      return FutureBuilder<File>(
-          future: fromAssetIOS_Android(pathPdf, 'result.pdf'),
-          builder: (context, snapshot) {
-            if(snapshot.hasData){
-             // print(snapshot.data!.path);
-            }else{
-              print('нет данных');
-            }
-            return !snapshot.hasData || snapshot.data is !File
+  Widget child({required String pathPdf,}){
+
+      ///запасной вариант загрузки андроидов через FFI
+      if(Platform.isAndroid){
+        return FutureBuilder<List<String>>(
+            future: loadAssetAll(pathPdf: pathPdf,),
+            builder: (context, snapshot) {
+print(snapshot.data);
+              return !snapshot.hasData
+                  ? const Center( child: SizedBox(width: 60, height: 60, child: CircularProgressIndicator()))
+                  :  SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                    children: snapshot.data!.map((item) => Image.file(File(item),)).toList()
+                ),
+              );
+            });
+      }
+      else if(Platform.isIOS ){
+        return FutureBuilder<File>(
+            future: fromAssetIOS_Android(pathPdf, 'result.pdf'),
+            builder: (context, snapshot) {
+              if(snapshot.hasData){
+                // print(snapshot.data!.path);
+              }else{
+                print('нет данных ios android');
+              }
+              return !snapshot.hasData || snapshot.data is !File
                   ? const Center( child: SizedBox(width: 60, height: 60, child: CircularProgressIndicator()))
                   :  PDFViewer_iOS(file: snapshot.data!,);
-          });
-    }else{
-      return FutureBuilder<String>(
-          future: loadAssetAll(pathPdf: pathPdf,),
-          builder: (context, snapshot) {
-            if(snapshot.hasData){
-             // print(snapshot.data!);
-            }else{
-              print('нет данных');
-            }
-            return !snapshot.hasData || snapshot.data is !String
-                ? const Center( child: SizedBox(width: 60, height: 60, child: CircularProgressIndicator()))
-                :  Image.asset(snapshot.data!);
-          });
-    }
+            });
+      }
+      else{
+        return FutureBuilder<List<String>>(
+            future: loadAssetAll(pathPdf: pathPdf,),
+            builder: (context, snapshot) {
+              if(snapshot.hasData){
+                print(snapshot.data!);
+              }else{
+                print('нет данных macos');
+              }
+              return !snapshot.hasData
+                  ? const Center( child: SizedBox(width: 60, height: 60, child: CircularProgressIndicator()))
+                  :  SingleChildScrollView(
+                  child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: snapshot.data!.map((item) => Image.asset(item)).toList()
+              )
+              );
+            });
+      }
+
   }
 
 }
