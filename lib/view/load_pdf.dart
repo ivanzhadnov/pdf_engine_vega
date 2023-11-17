@@ -7,7 +7,7 @@ import 'package:pdfium_bindings/pdfium_bindings.dart';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter/material.dart';
-import 'package:pdfx/pdfx.dart';
+//import 'package:pdfx/pdfx.dart';
 
 
 
@@ -17,22 +17,22 @@ class LoadPdf{
 
   Future<List<Image>>getPagesListImage({required String pathPdf, int ration = 1, String backgroundColor = '#FF0B1730'})async{
     List<Image> result = [];
-    if(Platform.isIOS){
-      result = await loadAssetAsListIOS(pathPdf: pathPdf, ration: ration, backgroundColor: backgroundColor);
-    }else{
+    //if(Platform.isIOS){
+    //  result = await loadAssetAsListIOS(pathPdf: pathPdf, ration: ration, backgroundColor: backgroundColor);
+    //}else{
       result = await loadAssetAsList(pathPdf: pathPdf, ration: ration, backgroundColor: backgroundColor);
-    }
+    //}
     return result;
   }
 
   ///получить количество страниц в документе
   Future<int>getPageCount({required String pathPdf,})async{
     int count = 0;
-    try{
+    /*try{
       PdfDocument _pdfDocument = await PdfDocument.openFile(pathPdf);
       count = _pdfDocument.pagesCount;
       await _pdfDocument.close();
-    }catch(e){}
+    }catch(e){}*/
 
     return count;
   }
@@ -40,7 +40,7 @@ class LoadPdf{
   ///получить байты
   Future<Uint8List>getBytesFromAsset({required String pathPdf, int ration = 1, String backgroundColor = '#FFFFFFFF', required int page})async{
     Uint8List bytes = Uint8List(0);
-    PdfDocument _pdfDocument = await PdfDocument.openFile(pathPdf);
+   /* PdfDocument _pdfDocument = await PdfDocument.openFile(pathPdf);
     try {
       final pdfPage = await _pdfDocument.getPage(page);
       final pdfWidth = pdfPage.width * ration;
@@ -57,11 +57,12 @@ class LoadPdf{
       debugPrint('Load UserAgreement from Assets error: $e');
     }
     //await _pdfDocument.close();
+    */
     return bytes;
   }
 
   ///тут и на будущее в просмотрщики получить List<Image> for iOS
-  Future<List<Image>>loadAssetAsListIOS({required String pathPdf, int ration = 1, String backgroundColor = '#FFFFFFFF'})async{
+ /* Future<List<Image>>loadAssetAsListIOS({required String pathPdf, int ration = 1, String backgroundColor = '#FFFFFFFF'})async{
     PdfDocument _pdfDocument = await PdfDocument.openAsset(pathPdf);
     final pageCount = _pdfDocument.pagesCount;
     List<Image> result = [];
@@ -94,7 +95,7 @@ class LoadPdf{
     }
     await _pdfDocument.close();
     return result;
-  }
+  }*/
 
 
   ///тут и на будущее в просмотрщики получить List<Image>
@@ -186,14 +187,14 @@ List<String> filesPaths = [];
     }
 
 
-    print(bytes.length);
+    //print(bytes.length);
 
     final pdfium = PdfiumWrap(libraryPath: libraryPath);
 
     ///получить количество страниц
     print(pdfium.loadDocumentFromBytes(bytes).getPageCount());
     int countPages = pdfium.loadDocumentFromBytes(bytes).getPageCount();
-    ///TODO циклом собрать массив отрендеренных страниц для отображения
+    ///циклом собрать массив отрендеренных страниц для отображения
 
 for(int i = 0; i < countPages; i++){
   String fileName = DateTime.now().millisecondsSinceEpoch.toString();
@@ -238,10 +239,17 @@ for(int i = 0; i < countPages; i++){
     try {
       var dir = await getApplicationDocumentsDirectory();
       File file = File("${dir.path}/$filename");
-      ///TODO загрузка из ассета, но нам может понадобиться загрузка из локального хранилища
-      var data = await rootBundle.load(asset);
-      var bytes = data.buffer.asUint8List();
-      print('длина фалйа в байтах 2 ${bytes.length}');
+      ///загрузка из ассета, но нам может понадобиться загрузка из локального хранилища
+      //var data = await rootBundle.load(asset);
+      //var bytes = data.buffer.asUint8List();
+      late Uint8List bytes;
+      try{
+        bytes = (await rootBundle.load(asset)).buffer.asUint8List();
+      }catch(e){
+        bytes = (await File(asset).readAsBytes());
+      }
+
+      print('длина файла в байтах 2 ${bytes.length}');
       await file.writeAsBytes(bytes, flush: true);
       completer.complete(file);
     } catch (e) {
