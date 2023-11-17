@@ -116,17 +116,7 @@ class LoadPdf{
       libraryPath = file.path;
 
     }else if(Platform.isMacOS){
-      ///имя файла
-      String libFileName = 'libpdfium.dylib';
-      ///создаем путь где должен лежать файл
-      final Directory docDir = await getApplicationDocumentsDirectory();
-      final String localPath = docDir.path;
-      String targetPath = path.join(localPath, libFileName);
-      print(targetPath);
-      ///проверяем есть ли файл
-      bool exists = await File(targetPath).exists();
-      print(exists);
-      libraryPath = targetPath;
+      libraryPath = 'libpdfium.dylib';
     }else if(Platform.isIOS){
       libraryPath = 'libpdfium_ios_x64.dylib';
     }else if(Platform.isWindows){
@@ -151,7 +141,7 @@ class LoadPdf{
           : Image.file(File('${directory.path}/out$i.jpg'))
       );
     }
-    document.closeDocument().dispose();
+    //document.closeDocument().dispose();
     return result;
   }
 
@@ -174,17 +164,7 @@ List<String> filesPaths = [];
       libraryPath = file.path;
     }
     else if(Platform.isMacOS){
-      ///имя файла
-       String libFileName = 'libpdfium.dylib';
-      ///создаем путь где должен лежать файл
-       final Directory docDir = await getApplicationDocumentsDirectory();
-       final String localPath = docDir.path;
-       String targetPath = path.join(localPath, libFileName);
-       print(targetPath);
-      ///проверяем есть ли файл
-      bool exists = await File(targetPath).exists();
-      print(exists);
-      libraryPath = targetPath;
+       libraryPath = 'libpdfium.dylib';
     }
     else if(Platform.isIOS){
       libraryPath = 'libpdfium_ios.dylib';
@@ -215,9 +195,7 @@ List<String> filesPaths = [];
     ///TODO циклом собрать массив отрендеренных страниц для отображения
 
 for(int i = 0; i < countPages; i++){
-  pdfium
-      .loadDocumentFromBytes(bytes)
-      .loadPage(i)
+  pdfium.loadDocumentFromBytes(bytes).loadPage(i)
   ///в частности перечислить флаг для отображения аннотаций
       .savePageAsJpg('${directory.path}/out${i}.jpg', qualityJpg: 80, flags: 1)
       .closePage();
@@ -225,9 +203,7 @@ for(int i = 0; i < countPages; i++){
 }
     ///отрендерить страницы одну за другой и отправить их в какой нибудь лист вьюер
 
-  pdfium.closeDocument()
-        .dispose();
-
+    //pdfium.closeDocument().dispose();
     return filesPaths;
   }
 
