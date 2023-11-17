@@ -142,7 +142,7 @@ class LoadPdf{
           .savePageAsJpg('${directory.path}/$fileName$i.jpg', qualityJpg: 80, flags: 1)
           .closePage();
       result.add(
-        !Platform.isAndroid ? Image.asset('${directory.path}/$fileName$i.jpg')
+        !Platform.isAndroid && !Platform.isWindows ? Image.asset('${directory.path}/$fileName$i.jpg')
           : Image.file(File('${directory.path}/$fileName$i.jpg'))
       );
     }
