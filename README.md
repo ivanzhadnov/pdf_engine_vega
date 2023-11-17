@@ -1,62 +1,31 @@
-<!--
-This README describes the package. If you publish this package to pub.dev,
-this README's contents appear on the landing page for your package.
 
-For information about how to write a good package README, see the guide for
-[writing package pages](https://dart.dev/guides/libraries/writing-package-pages).
+для сборки билда под МакОС выполнить инструкции:
+Compiled (dynamic) library (macOS)
+To add a closed source library to a Flutter macOS Desktop app, use the following instructions:
 
-For general information about developing packages, see the Dart guide for
-[creating packages](https://dart.dev/guides/libraries/create-library-packages)
-and the Flutter guide for
-[developing packages and plugins](https://flutter.dev/developing-packages).
--->
+Follow the instructions for Flutter desktop to create a Flutter desktop app.
+Open the yourapp/macos/Runner.xcworkspace in Xcode.
+Drag your precompiled library (libyourlibrary.dylib) into Runner/Frameworks.
+Click Runner and go to the Build Phases tab.
+Drag libyourlibrary.dylib into the Copy Bundle Resources list.
+Under Embed Libraries, check Code Sign on Copy.
+Under Link Binary With Libraries, set status to Optional. (We use dynamic linking, no need to statically link.)
+Click Runner and go to the General tab.
+Drag libyourlibrary.dylib into the Frameworks, Libraries and Embedded Content list.
+Select Embed & Sign.
+Click Runner and go to the Build Settings tab.
+In the Search Paths section configure the Library Search Paths to include the path where libyourlibrary.dylib is located.
+Edit lib/main.dart.
+Use DynamicLibrary.open('libyourlibrary.dylib') to dynamically link to the symbols.
+Call your native function somewhere in a widget.
+Run flutter run and check that your native function gets called.
+Run flutter build macos to build a self-contained release version of your app.
 
-TODO: Put a short description of the package here that helps potential users
-know whether this package might be useful for them.
+используем файл libpdfium.dylib
 
-## Features
+для андроид проверить наличие в assets/libpdf/libpdfium_android.so, далее он сам скопируется в документ директорию проекта
 
-TODO: List what your package can do. Maybe include images, gifs, or videos.
+для Windows в корне проекта должен лежать файл pdfium.dll, далее все произойдет само
+при обновлении файлов библиотек придерживаться архитектуры на которой будет работать приложение
 
-## Getting started
-
-TODO: List prerequisites and provide or point to information on how to
-start using the package.
-
-## Usage
-
-TODO: Include short and useful examples for package users. Add longer examples
-to `/example` folder.
-
-```dart
-const like = 'sample';
-```
-
-## Additional information
-
-TODO: Tell users more about the package: where to find more information, how to
-contribute to the package, how to file issues, what response they can expect
-from the package authors, and more.
-
-web pdfx - launcher
-ios flutter_pdfview 1.3.2
-android flutter_pdfview 1.3.2 и PDFium_LIBRARY
-windows - PDFium_LIBRARY  pdfx отображает аннотации
-linux -  PDFium_LIBRARY
-mac os - flutter_pdfview 1.3.2 (m1 - m2) и PDFium_LIBRARY
-
-просмотр
-путь к файлу
-получить количество страниц
-пролистнуть на нужную страницу
-контроллер
-ширина
-высота
-выравнивание по ширине... фитт
-забрать файл, добавить аннотацию, вывести на просмотр
-редактирование
-путь к файлу
-извлечь аннотацию
-извлечь аттачменты
-добавить аннтоацию
-добавить аттачменты
+обновления библиотеки https://github.com/bblanchon/pdfium-binaries
