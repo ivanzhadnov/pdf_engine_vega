@@ -132,13 +132,14 @@ class LoadPdf{
     int pageCount = document.getPageCount();
     for(int i = 0; i < pageCount; i++){
       print('обработали страницу $i');
+      String fileName = DateTime.now().millisecondsSinceEpoch.toString();
       document.loadPage(i)
           //.renderPageAsBytes(300, 400, /*backgroundColor:  int.parse(backgroundColor, radix: 16),*/ flags: 1);
-          .savePageAsJpg('${directory.path}/out$i.jpg', qualityJpg: 80, flags: 1)
+          .savePageAsJpg('${directory.path}/$fileName$i.jpg', qualityJpg: 80, flags: 1)
           .closePage();
       result.add(
-        !Platform.isAndroid ? Image.asset('${directory.path}/out$i.jpg')
-          : Image.file(File('${directory.path}/out$i.jpg'))
+        !Platform.isAndroid ? Image.asset('${directory.path}/$fileName$i.jpg')
+          : Image.file(File('${directory.path}/$fileName$i.jpg'))
       );
     }
     //document.closeDocument().dispose();
@@ -195,11 +196,12 @@ List<String> filesPaths = [];
     ///TODO циклом собрать массив отрендеренных страниц для отображения
 
 for(int i = 0; i < countPages; i++){
+  String fileName = DateTime.now().millisecondsSinceEpoch.toString();
   pdfium.loadDocumentFromBytes(bytes).loadPage(i)
   ///в частности перечислить флаг для отображения аннотаций
-      .savePageAsJpg('${directory.path}/out${i}.jpg', qualityJpg: 80, flags: 1)
+      .savePageAsJpg('${directory.path}/$fileName${i}.jpg', qualityJpg: 80, flags: 1)
       .closePage();
-  filesPaths.add('${directory.path}/out${i}.jpg');
+  filesPaths.add('${directory.path}/$fileName${i}.jpg');
 }
     ///отрендерить страницы одну за другой и отправить их в какой нибудь лист вьюер
 
