@@ -121,6 +121,9 @@ class LoadPdf{
     }else if(Platform.isIOS){
       libraryPath = 'libpdfium_ios_x64.dylib';
     }else if(Platform.isWindows){
+      File file = File(path.join(Directory.current.path, 'pdfium.dll'));
+      bool exist = await file.exists();
+      print(exist);
       libraryPath = path.join(Directory.current.path, 'pdfium.dll');
     }else if(Platform.isLinux){
       libraryPath = path.join(Directory.current.path, 'libpdfium.so');
