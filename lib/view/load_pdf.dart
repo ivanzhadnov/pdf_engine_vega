@@ -15,7 +15,52 @@ import 'package:pdfx/pdfx.dart';
 ///бинарники бибилотек https://github.com/bblanchon/pdfium-binaries
 
 class LoadPdf{
+  PdfiumWrap pdfium = PdfiumWrap();
+  ///set pdfium
+  setPdfium()async{
+    pdfium.dispose();
+    String libraryPath = '';
+    final directory = await getApplicationDocumentsDirectory();
+    if(Platform.isAndroid){
 
+      final String localPath = directory.path;
+      File file = File(localPath + '/libpdfium_android.so');
+      bool exist = await file.exists();
+      if(!exist){
+        final asset = await rootBundle.load('assets/libpdf/libpdfium_android.so');
+        final buffer = asset.buffer;
+        await file.writeAsBytes(buffer.asUint8List(asset.offsetInBytes, asset.lengthInBytes));
+      }
+      libraryPath = file.path;
+
+    }
+    else if(Platform.isMacOS){
+      libraryPath = 'libpdfium.dylib';
+    }
+    else if(Platform.isIOS){
+
+      final String localPath = directory.path;
+      File file = File(path.join(localPath, 'libpdfium_ios.dylib'));
+      bool exist = await file.exists();
+      print('файл бибилотеки найден $exist ${file.path}');
+      libraryPath = file.path;
+
+
+    }
+    else if(Platform.isWindows){
+      File file = File(path.join(Directory.current.path, 'pdfium.dll'));
+      bool exist = await file.exists();
+      print(exist);
+      libraryPath = path.join(Directory.current.path, 'pdfium.dll');
+    }
+    else if(Platform.isLinux){
+      libraryPath = path.join(Directory.current.path, 'libpdfium.so');
+    }
+    pdfium = PdfiumWrap(libraryPath: libraryPath);
+
+  }
+
+  ///получить массив со страницами в зависиомтси от ОС
   Future<List<Image>>getPagesListImage({required String pathPdf, int ration = 1, String backgroundColor = '#FF0B1730'})async {
     List<Image> result = [];
     if(Platform.isIOS){
@@ -104,47 +149,16 @@ class LoadPdf{
   Future<List<Image>> loadAssetAsList({required String pathPdf, int ration = 1, String backgroundColor = '#FFFFFFFF'})async{
 
     List<Image> result = [];
-    String libraryPath = '';
+    setPdfium();
     final directory = await getApplicationDocumentsDirectory();
-    if(Platform.isAndroid){
-
-      final String localPath = directory.path;
-      File file = File(localPath + '/libpdfium_android.so');
-      bool exist = await file.exists();
-      if(!exist){
-        final asset = await rootBundle.load('assets/libpdf/libpdfium_android.so');
-        final buffer = asset.buffer;
-        await file.writeAsBytes(buffer.asUint8List(asset.offsetInBytes, asset.lengthInBytes));
-      }
-      libraryPath = file.path;
-
-    }else if(Platform.isMacOS){
-      libraryPath = 'libpdfium.dylib';
-    }else if(Platform.isIOS){
-
-      final String localPath = directory.path;
-      File file = File(path.join(localPath, 'libpdfium_ios.dylib'));
-      bool exist = await file.exists();
-      print('файл бибилотеки найден $exist ${file.path}');
-      libraryPath = file.path;
-
-
-    }else if(Platform.isWindows){
-      File file = File(path.join(Directory.current.path, 'pdfium.dll'));
-      bool exist = await file.exists();
-      print(exist);
-      libraryPath = path.join(Directory.current.path, 'pdfium.dll');
-    }else if(Platform.isLinux){
-      libraryPath = path.join(Directory.current.path, 'libpdfium.so');
-    }
     final bytes = (await rootBundle.load(pathPdf)).buffer.asUint8List();
-    print('длина фалйа в байтах ${bytes.length}');
-    final pdfium = PdfiumWrap(libraryPath: libraryPath);
+    //print('длина фалйа в байтах ${bytes.length}');
+
 
     PdfiumWrap document = pdfium.loadDocumentFromBytes(bytes);
     int pageCount = document.getPageCount();
     for(int i = 0; i < pageCount; i++){
-      print('обработали страницу $i');
+      //print('обработали страницу $i');
       String fileName = DateTime.now().millisecondsSinceEpoch.toString();
       document.loadPage(i)
           //.renderPageAsBytes(300, 400, /*backgroundColor:  int.parse(backgroundColor, radix: 16),*/ flags: 1);
@@ -155,7 +169,7 @@ class LoadPdf{
           : Image.file(File('${directory.path}${Platform.pathSeparator}$fileName$i.jpg'))
       );
     }
-    document.closeDocument().dispose();
+    //document.closeDocument().dispose();
     return result;
   }
 
@@ -164,35 +178,9 @@ class LoadPdf{
   ///загрузка файла из ассета для всех ОС кроме ИОС и Web
   Future<List<String>> loadAssetAll({required String pathPdf}) async {
 List<String> filesPaths = [];
-    String libraryPath = '';
+    setPdfium();
     final directory = await getApplicationDocumentsDirectory();
-    if(Platform.isAndroid){
-      final String localPath = directory.path;
-      File file = File(localPath + '/libpdfium_android.so');
-      bool exist = await file.exists();
-      if(!exist){
-        final asset = await rootBundle.load('assets/libpdf/libpdfium_android.so');
-        final buffer = asset.buffer;
-        await file.writeAsBytes(buffer.asUint8List(asset.offsetInBytes, asset.lengthInBytes));
-      }
-      libraryPath = file.path;
-    }
-    else if(Platform.isMacOS){
-       libraryPath = 'libpdfium.dylib';
-    }
-    else if(Platform.isIOS){
-      libraryPath = 'libpdfium_ios.dylib';
-      final String localPath = directory.path;
-      File file = File(path.join(Directory.current.path, 'libpdfium_ios.dylib'));
-      bool exist = await file.exists();
-      print('файл бибилотеки найден $exist');
-    }
-    else if(Platform.isWindows){
-      libraryPath = path.join(Directory.current.path, 'pdfium.dll');
-    }
-    else if(Platform.isLinux){
-      libraryPath = path.join(Directory.current.path, 'libpdfium.so');
-    }
+
 
     late Uint8List bytes;
     ///загрузка из ассета, но нам может понадобиться загрузка из локального хранилища
@@ -201,7 +189,7 @@ List<String> filesPaths = [];
     }catch(e){
       bytes = (await File(pathPdf).readAsBytes());
     }
-    final pdfium = PdfiumWrap(libraryPath: libraryPath);
+
 
     ///получить количество страниц
     final document = pdfium.loadDocumentFromBytes(bytes);
@@ -216,9 +204,7 @@ List<String> filesPaths = [];
           .closePage();
           filesPaths.add('${directory.path}${Platform.pathSeparator}$fileName$i.jpg');
     }
-    ///отрендерить страницы одну за другой и отправить их в какой нибудь лист вьюер
-
-    document.closeDocument().dispose();
+    //document.closeDocument().dispose();
     return filesPaths;
   }
 
@@ -243,33 +229,6 @@ List<String> filesPaths = [];
   }
 
 
-  ///загрузка файла из ассета для ИОС
-  Future<File> fromAssetWeb(String asset, String filename) async {
-    // To open from assets, you can copy them to the app storage folder, and the access them "locally"
-    Completer<File> completer = Completer();
-
-    try {
-      var dir = await getApplicationDocumentsDirectory();
-      File file = File("${dir.path}/$filename");
-      ///загрузка из ассета, но нам может понадобиться загрузка из локального хранилища
-      //var data = await rootBundle.load(asset);
-      //var bytes = data.buffer.asUint8List();
-      late Uint8List bytes;
-      try{
-        bytes = (await rootBundle.load(asset)).buffer.asUint8List();
-      }catch(e){
-        bytes = (await File(asset).readAsBytes());
-      }
-
-      print('длина файла в байтах 2 ${bytes.length}');
-      await file.writeAsBytes(bytes, flush: true);
-      completer.complete(file);
-    } catch (e) {
-      throw Exception('Error parsing asset file!');
-    }
-
-    return completer.future;
-  }
 
   ///выбираем тип виджета в зависимости от платформы на которой запущено приложение
   Widget child({required String pathPdf,}){
@@ -289,7 +248,7 @@ List<String> filesPaths = [];
                   );
             });
       }
-      else if(Platform.isIOS ){
+      else if(Platform.isIOS || Platform.isWindows){
         return FutureBuilder<File>(
             future: fromAssetIOS_Android(pathPdf, 'result.pdf'),
             builder: (context, snapshot) {
