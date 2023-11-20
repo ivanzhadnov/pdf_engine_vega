@@ -155,7 +155,7 @@ class LoadPdf{
           : Image.file(File('${directory.path}${Platform.pathSeparator}$fileName$i.jpg'))
       );
     }
-    //document.closeDocument().dispose();
+    document.closeDocument().dispose();
     return result;
   }
 
@@ -204,7 +204,7 @@ List<String> filesPaths = [];
     final pdfium = PdfiumWrap(libraryPath: libraryPath);
 
     ///получить количество страниц
-    print(pdfium.loadDocumentFromBytes(bytes).getPageCount());
+    //print(pdfium.loadDocumentFromBytes(bytes).getPageCount());
     int countPages = pdfium.loadDocumentFromBytes(bytes).getPageCount();
     ///циклом собрать массив отрендеренных страниц для отображения
 
@@ -218,7 +218,7 @@ for(int i = 0; i < countPages; i++){
 }
     ///отрендерить страницы одну за другой и отправить их в какой нибудь лист вьюер
 
-    //pdfium.closeDocument().dispose();
+    pdfium.closeDocument().dispose();
     return filesPaths;
   }
 
