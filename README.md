@@ -29,3 +29,12 @@ Run flutter build macos to build a self-contained release version of your app.
 при обновлении файлов библиотек придерживаться архитектуры на которой будет работать приложение
 
 обновления библиотеки https://github.com/bblanchon/pdfium-binaries
+
+добавили файл в корень проекта
+добавили этот файл в фреймворки
+добавили в User_Defined  переменную для поиска пути /Users/$(INSTALL_OWNER)/Library/Containers/com.GB.FlightPlan.FlightPlan/Data/Documents/
+добавили в search_patch ibrary search path переменную ${DOC_DIR_PDF}
+добавили файл в Link Binary With Libraries с параметром Опционал
+добавили файл в Copy Bundle Resources
+добавили в Embed Libraries  и поставили галку подписать код
+проверить General  Frameworks, Libraries, and Embedded Content чтоб бибилотека стояла Embed & Sign

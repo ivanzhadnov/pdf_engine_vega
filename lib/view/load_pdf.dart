@@ -279,7 +279,7 @@ for(int i = 0; i < countPages; i++){
   Widget child({required String pathPdf,}){
 
       ///запасной вариант загрузки андроидов через FFI
-      if(Platform.isAndroid){
+      if(Platform.isAndroid || Platform.isWindows){
         return FutureBuilder<List<String>>(
             future: loadAssetAll(pathPdf: pathPdf,),
             builder: (context, snapshot) {
