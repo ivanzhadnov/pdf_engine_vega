@@ -204,21 +204,21 @@ List<String> filesPaths = [];
     final pdfium = PdfiumWrap(libraryPath: libraryPath);
 
     ///получить количество страниц
-    //print(pdfium.loadDocumentFromBytes(bytes).getPageCount());
-    int countPages = pdfium.loadDocumentFromBytes(bytes).getPageCount();
+    final document = pdfium.loadDocumentFromBytes(bytes);
+    int countPages = document.getPageCount();
     ///циклом собрать массив отрендеренных страниц для отображения
 
-for(int i = 0; i < countPages; i++){
-  String fileName = DateTime.now().millisecondsSinceEpoch.toString();
-  pdfium.loadDocumentFromBytes(bytes).loadPage(i)
-  ///в частности перечислить флаг для отображения аннотаций
-      .savePageAsJpg('${directory.path}${Platform.pathSeparator}$fileName$i.jpg', qualityJpg: 80, flags: 1)
-      .closePage();
-      filesPaths.add('${directory.path}${Platform.pathSeparator}$fileName$i.jpg');
-}
+    for(int i = 0; i < countPages; i++){
+      String fileName = DateTime.now().millisecondsSinceEpoch.toString();
+      document.loadPage(i)
+      ///в частности перечислить флаг для отображения аннотаций
+          .savePageAsJpg('${directory.path}${Platform.pathSeparator}$fileName$i.jpg', qualityJpg: 80, flags: 1)
+          .closePage();
+          filesPaths.add('${directory.path}${Platform.pathSeparator}$fileName$i.jpg');
+    }
     ///отрендерить страницы одну за другой и отправить их в какой нибудь лист вьюер
 
-    pdfium.closeDocument().dispose();
+    document.closeDocument().dispose();
     return filesPaths;
   }
 
@@ -275,18 +275,18 @@ for(int i = 0; i < countPages; i++){
   Widget child({required String pathPdf,}){
 
       ///запасной вариант загрузки андроидов через FFI
-      if(Platform.isAndroid || Platform.isWindows){
+      if(Platform.isAndroid){
         return FutureBuilder<List<String>>(
             future: loadAssetAll(pathPdf: pathPdf,),
             builder: (context, snapshot) {
               return !snapshot.hasData
                   ? const Center( child: SizedBox(width: 60, height: 60, child: CircularProgressIndicator()))
                   :  SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                    children: snapshot.data!.map((item) => Image.file(File(item),)).toList()
-                ),
-              );
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                        children: snapshot.data!.map((item) => Image.file(File(item),)).toList()
+                    ),
+                  );
             });
       }
       else if(Platform.isIOS ){
@@ -296,7 +296,7 @@ for(int i = 0; i < countPages; i++){
               if(snapshot.hasData){
                 // print(snapshot.data!.path);
               }else{
-                print('нет данных ios android');
+                //print('нет данных ios android');
               }
               return !snapshot.hasData || snapshot.data is !File
                   ? const Center( child: SizedBox(width: 60, height: 60, child: CircularProgressIndicator()))
@@ -307,19 +307,19 @@ for(int i = 0; i < countPages; i++){
         return FutureBuilder<List<String>>(
             future: loadAssetAll(pathPdf: pathPdf,),
             builder: (context, snapshot) {
-              if(snapshot.hasData){
-                print(snapshot.data!);
-              }else{
-                print('нет данных macos');
-              }
+              // if(snapshot.hasData){
+              //   print(snapshot.data!);
+              // }else{
+              //   print('нет данных macos');
+              // }
               return !snapshot.hasData
                   ? const Center( child: SizedBox(width: 60, height: 60, child: CircularProgressIndicator()))
                   :  SingleChildScrollView(
-                  child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: snapshot.data!.map((item) => Image.asset(item)).toList()
-              )
-              );
+                        child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: snapshot.data!.map((item) => Image.asset(item)).toList()
+                      )
+                    );
             });
       }
 
