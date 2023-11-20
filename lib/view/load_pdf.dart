@@ -148,11 +148,11 @@ class LoadPdf{
       String fileName = DateTime.now().millisecondsSinceEpoch.toString();
       document.loadPage(i)
           //.renderPageAsBytes(300, 400, /*backgroundColor:  int.parse(backgroundColor, radix: 16),*/ flags: 1);
-          .savePageAsJpg(path.join(directory.path, '$fileName$i.jpg'), qualityJpg: 80, flags: 1)
+          .savePageAsJpg('${directory.path}${Platform.pathSeparator}$fileName$i.jpg', qualityJpg: 80, flags: 1)
           .closePage();
       result.add(
-        !Platform.isAndroid && !Platform.isWindows ? Image.asset(path.join(directory.path, '$fileName$i.jpg'))
-          : Image.file(File(path.join(directory.path, '$fileName$i.jpg')))
+        !Platform.isAndroid && !Platform.isWindows ? Image.asset('${directory.path}${Platform.pathSeparator}$fileName$i.jpg')
+          : Image.file(File('${directory.path}${Platform.pathSeparator}$fileName$i.jpg'))
       );
     }
     //document.closeDocument().dispose();
@@ -201,10 +201,6 @@ List<String> filesPaths = [];
     }catch(e){
       bytes = (await File(pathPdf).readAsBytes());
     }
-
-
-    //print(bytes.length);
-
     final pdfium = PdfiumWrap(libraryPath: libraryPath);
 
     ///получить количество страниц
@@ -216,9 +212,9 @@ for(int i = 0; i < countPages; i++){
   String fileName = DateTime.now().millisecondsSinceEpoch.toString();
   pdfium.loadDocumentFromBytes(bytes).loadPage(i)
   ///в частности перечислить флаг для отображения аннотаций
-      .savePageAsJpg(path.join(directory.path, '$fileName${i}.jpg'), qualityJpg: 80, flags: 1)
+      .savePageAsJpg('${directory.path}${Platform.pathSeparator}$fileName$i.jpg', qualityJpg: 80, flags: 1)
       .closePage();
-      filesPaths.add(path.join(directory.path, '$fileName${i}.jpg'));
+      filesPaths.add('${directory.path}${Platform.pathSeparator}$fileName$i.jpg');
 }
     ///отрендерить страницы одну за другой и отправить их в какой нибудь лист вьюер
 
