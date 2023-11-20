@@ -8,7 +8,6 @@ import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:pdfx/pdfx.dart';
-//import 'package:pdfx/pdfx.dart';
 
 
 
@@ -22,7 +21,6 @@ class LoadPdf{
     String libraryPath = '';
     final directory = await getApplicationDocumentsDirectory();
     if(Platform.isAndroid){
-
       final String localPath = directory.path;
       File file = File(localPath + '/libpdfium_android.so');
       bool exist = await file.exists();
@@ -32,25 +30,16 @@ class LoadPdf{
         await file.writeAsBytes(buffer.asUint8List(asset.offsetInBytes, asset.lengthInBytes));
       }
       libraryPath = file.path;
-
     }
     else if(Platform.isMacOS){
       libraryPath = 'libpdfium.dylib';
     }
     else if(Platform.isIOS){
-
       final String localPath = directory.path;
       File file = File(path.join(localPath, 'libpdfium_ios.dylib'));
-      bool exist = await file.exists();
-      print('файл бибилотеки найден $exist ${file.path}');
       libraryPath = file.path;
-
-
     }
     else if(Platform.isWindows){
-      File file = File(path.join(Directory.current.path, 'pdfium.dll'));
-      bool exist = await file.exists();
-      print(exist);
       libraryPath = path.join(Directory.current.path, 'pdfium.dll');
     }
     else if(Platform.isLinux){
@@ -152,13 +141,10 @@ class LoadPdf{
     setPdfium();
     final directory = await getApplicationDocumentsDirectory();
     final bytes = (await rootBundle.load(pathPdf)).buffer.asUint8List();
-    //print('длина фалйа в байтах ${bytes.length}');
-
 
     PdfiumWrap document = pdfium.loadDocumentFromBytes(bytes);
     int pageCount = document.getPageCount();
     for(int i = 0; i < pageCount; i++){
-      //print('обработали страницу $i');
       String fileName = DateTime.now().millisecondsSinceEpoch.toString();
       document.loadPage(i)
           //.renderPageAsBytes(300, 400, /*backgroundColor:  int.parse(backgroundColor, radix: 16),*/ flags: 1);
@@ -252,11 +238,6 @@ List<String> filesPaths = [];
         return FutureBuilder<File>(
             future: fromAssetIOS_Android(pathPdf, 'result.pdf'),
             builder: (context, snapshot) {
-              if(snapshot.hasData){
-                // print(snapshot.data!.path);
-              }else{
-                //print('нет данных ios android');
-              }
               return !snapshot.hasData || snapshot.data is !File
                   ? const Center( child: SizedBox(width: 60, height: 60, child: CircularProgressIndicator()))
                   :  PDFViewer_iOS(file: snapshot.data!,);
@@ -266,11 +247,6 @@ List<String> filesPaths = [];
         return FutureBuilder<List<String>>(
             future: loadAssetAll(pathPdf: pathPdf,),
             builder: (context, snapshot) {
-              // if(snapshot.hasData){
-              //   print(snapshot.data!);
-              // }else{
-              //   print('нет данных macos');
-              // }
               return !snapshot.hasData
                   ? const Center( child: SizedBox(width: 60, height: 60, child: CircularProgressIndicator()))
                   :  SingleChildScrollView(
