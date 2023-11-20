@@ -15,7 +15,7 @@ import 'package:pdfx/pdfx.dart';
 ///бинарники бибилотек https://github.com/bblanchon/pdfium-binaries
 
 class LoadPdf{
-  PdfiumWrap pdfium = PdfiumWrap();
+  late PdfiumWrap pdfium = PdfiumWrap(libraryPath: '');
   ///set pdfium
   setPdfium()async{
     pdfium.dispose();
