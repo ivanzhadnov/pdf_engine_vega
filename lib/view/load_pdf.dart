@@ -9,15 +9,18 @@ import 'package:path_provider/path_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:pdfx/pdfx.dart';
 
+import '../edit/annotation_class.dart';
+import '../edit/annotation_core.dart';
+
 
 
 ///бинарники бибилотек https://github.com/bblanchon/pdfium-binaries
 
 class LoadPdf{
-  late PdfiumWrap pdfium = PdfiumWrap(libraryPath: '');
+  late PdfiumWrap pdfium = PdfiumWrap(libraryPath: 'libpdfium.dylib');
   ///set pdfium
-  setPdfium()async{
-    pdfium.dispose();
+  Future<bool>setPdfium()async{
+    if(!Platform.isMacOS)pdfium.dispose();
     String libraryPath = '';
     final directory = await getApplicationDocumentsDirectory();
     if(Platform.isAndroid){
@@ -46,7 +49,7 @@ class LoadPdf{
       libraryPath = path.join(Directory.current.path, 'libpdfium.so');
     }
     pdfium = PdfiumWrap(libraryPath: libraryPath);
-
+    return true;
   }
 
   ///получить массив со страницами в зависиомтси от ОС
@@ -138,60 +141,130 @@ class LoadPdf{
   Future<List<Image>> loadAssetAsList({required String pathPdf, int ration = 1, String backgroundColor = '#FFFFFFFF'})async{
 
     List<Image> result = [];
-    setPdfium();
-    final directory = await getApplicationDocumentsDirectory();
-    final bytes = (await rootBundle.load(pathPdf)).buffer.asUint8List();
+   await setPdfium().then((value)async{
+     final directory = await getApplicationDocumentsDirectory();
+     //final bytes = (await rootBundle.load(pathPdf)).buffer.asUint8List();
+     late Uint8List bytes;
+     ///загрузка из ассета, но нам может понадобиться загрузка из локального хранилища
+     try{
+       bytes = (await rootBundle.load(pathPdf)).buffer.asUint8List();
+     }catch(e){
+     bytes = (await File(pathPdf).readAsBytes());
+     }
 
-    PdfiumWrap document = pdfium.loadDocumentFromBytes(bytes);
-    int pageCount = document.getPageCount();
-    for(int i = 0; i < pageCount; i++){
-      String fileName = DateTime.now().millisecondsSinceEpoch.toString();
-      document.loadPage(i)
-          //.renderPageAsBytes(300, 400, /*backgroundColor:  int.parse(backgroundColor, radix: 16),*/ flags: 1);
-          .savePageAsJpg('${directory.path}${Platform.pathSeparator}$fileName$i.jpg', qualityJpg: 80, flags: 1)
-          .closePage();
-      result.add(
-        !Platform.isAndroid && !Platform.isWindows ? Image.asset('${directory.path}${Platform.pathSeparator}$fileName$i.jpg')
-          : Image.file(File('${directory.path}${Platform.pathSeparator}$fileName$i.jpg'))
-      );
-    }
-    //document.closeDocument().dispose();
+     PdfiumWrap document = pdfium.loadDocumentFromBytes(bytes);
+
+     int pageCount = document.getPageCount();
+     for(int i = 0; i < pageCount; i++){
+     //String fileName = DateTime.now().millisecondsSinceEpoch.toString();
+     String fileName = 'render';
+     document.loadPage(i)
+     //.renderPageAsBytes(300, 400, /*backgroundColor:  int.parse(backgroundColor, radix: 16),*/ flags: 1);
+         .savePageAsJpg('${directory.path}${Platform.pathSeparator}$fileName$i.jpg', qualityJpg: 80, flags: 1)
+         .closePage();
+     result.add(
+     !Platform.isAndroid && !Platform.isWindows ? Image.asset('${directory.path}${Platform.pathSeparator}$fileName$i.jpg')
+         : Image.file(File('${directory.path}${Platform.pathSeparator}$fileName$i.jpg'))
+     );
+     }
+     //document.closeDocument().dispose();
+   });
+
     return result;
+  }
+
+  ///загрузить в память список jpg файлов полученных из страниц ПДФ документа (IOS)
+  Future<List<Uint8List>> loadRenderingImagesPaths({required String pathPdf, int ration = 1, String backgroundColor = '#FFFFFFFF'})async{
+    List<Uint8List> filesBytes = [];
+    if(Platform.isIOS){
+      PdfDocument _pdfDocument = await PdfDocument.openAsset(pathPdf);
+      final pageCount = _pdfDocument.pagesCount;
+      for (int i = 1; i <= pageCount; i++) {
+        try {
+          final pdfPage = await _pdfDocument.getPage(i);
+          final pdfWidth = pdfPage.width * ration;
+          final pdfHeight = pdfPage.height * ration;
+          final image = await pdfPage.render(
+            width: pdfWidth,
+            height: pdfHeight,
+            format: PdfPageImageFormat.jpeg,
+            backgroundColor: backgroundColor,
+            quality: 100,
+            cropRect: i == 4 ? Rect.fromLTWH(0, 0, pdfWidth, 140) : null,
+          );
+          final bytes = image!.bytes;
+          filesBytes.add(bytes);
+        }
+        catch (e) {
+          debugPrint('Load UserAgreement from Assets error: $e');
+        }
+      }
+      await _pdfDocument.close();
+
+    }else{
+      await setPdfium().then((value)async{
+        final directory = await getApplicationDocumentsDirectory();
+        late Uint8List bytes;
+        ///загрузка из ассета, но нам может понадобиться загрузка из локального хранилища
+        try{
+          bytes = (await rootBundle.load(pathPdf)).buffer.asUint8List();
+        }catch(e){
+        bytes = (await File(pathPdf).readAsBytes());
+        }
+        ///получить количество страниц
+        final document = pdfium.loadDocumentFromBytes(bytes);
+        int countPages = document.getPageCount();
+        //int width = document.getPageWidth().toInt();
+        //int height = document.getPageHeight().toInt();
+        ///циклом собрать массив отрендеренных страниц для отображения
+
+        for(int i = 0; i < countPages; i++){
+              document.loadPage(i)
+              .savePageAsJpg('${directory.path}${Platform.pathSeparator}render$i.jpg', qualityJpg: 100, flags: 1)
+              .closePage();
+          bytes = (await File('${directory.path}${Platform.pathSeparator}render$i.jpg').readAsBytes());
+        //filesBytes.add(document.loadPage(i).renderPageAsBytes(300, 400, flags: 0, /*backgroundColor:  int.parse(backgroundColor, radix: 16)*/ ));
+          filesBytes.add(bytes);
+        }
+      });
+
+    }
+    return filesBytes;
+
   }
 
 
 
-  ///загрузка файла из ассета для всех ОС кроме ИОС и Web
+  ///загрузка файла PDF из ассета для всех ОС кроме ИОС и Web и помещение в файлы JPG по страницам
   Future<List<String>> loadAssetAll({required String pathPdf}) async {
-List<String> filesPaths = [];
-    setPdfium();
-    final directory = await getApplicationDocumentsDirectory();
+  List<String> filesPaths = [];
+   await  setPdfium().then((value)async{
+     final directory = await getApplicationDocumentsDirectory();
+     late Uint8List bytes;
+     ///загрузка из ассета, но нам может понадобиться загрузка из локального хранилища
+     try{
+       bytes = (await rootBundle.load(pathPdf)).buffer.asUint8List();
+     }catch(e){
+       bytes = (await File(pathPdf).readAsBytes());
+     }
+     ///получить количество страниц
+     final document = pdfium.loadDocumentFromBytes(bytes);
+     int countPages = document.getPageCount();
+     ///циклом собрать массив отрендеренных страниц для отображения
 
+     for(int i = 0; i < countPages; i++){
+       //String fileName = DateTime.now().millisecondsSinceEpoch.toString();
+       String fileName = 'render';
+       document.loadPage(i)
+       ///в частности перечислить флаг для отображения аннотаций
+           .savePageAsJpg('${directory.path}${Platform.pathSeparator}$fileName$i.jpg', qualityJpg: 80, flags: 1)
+           .closePage();
+       filesPaths.add('${directory.path}${Platform.pathSeparator}$fileName$i.jpg');
+     }
+     //document.closeDocument().dispose();
 
-    late Uint8List bytes;
-    ///загрузка из ассета, но нам может понадобиться загрузка из локального хранилища
-    try{
-      bytes = (await rootBundle.load(pathPdf)).buffer.asUint8List();
-    }catch(e){
-      bytes = (await File(pathPdf).readAsBytes());
-    }
-
-
-    ///получить количество страниц
-    final document = pdfium.loadDocumentFromBytes(bytes);
-    int countPages = document.getPageCount();
-    ///циклом собрать массив отрендеренных страниц для отображения
-
-    for(int i = 0; i < countPages; i++){
-      String fileName = DateTime.now().millisecondsSinceEpoch.toString();
-      document.loadPage(i)
-      ///в частности перечислить флаг для отображения аннотаций
-          .savePageAsJpg('${directory.path}${Platform.pathSeparator}$fileName$i.jpg', qualityJpg: 80, flags: 1)
-          .closePage();
-          filesPaths.add('${directory.path}${Platform.pathSeparator}$fileName$i.jpg');
-    }
-    //document.closeDocument().dispose();
-    return filesPaths;
+   });
+  return filesPaths;
   }
 
   ///загрузка файла из ассета для ИОС
@@ -214,15 +287,14 @@ List<String> filesPaths = [];
     return completer.future;
   }
 
-
-
   ///выбираем тип виджета в зависимости от платформы на которой запущено приложение
-  Widget child({required String pathPdf,}){
+  Widget child({required String pathPdf, List<AnnotationItem>? annotations = const[]}){
+    bool withAnnot = annotations != null && annotations.isNotEmpty;
 
       ///запасной вариант загрузки андроидов через FFI
       if(Platform.isAndroid){
         return FutureBuilder<List<String>>(
-            future: loadAssetAll(pathPdf: pathPdf,),
+            future: withAnnot ? AnnotationPDF().addAnnotation(pathPdf: pathPdf, annotations: annotations).then((value)=>loadAssetAll(pathPdf: value,)) : loadAssetAll(pathPdf: pathPdf,),
             builder: (context, snapshot) {
               return !snapshot.hasData
                   ? const Center( child: SizedBox(width: 60, height: 60, child: CircularProgressIndicator()))
@@ -236,7 +308,7 @@ List<String> filesPaths = [];
       }
       else if(Platform.isIOS || Platform.isWindows){
         return FutureBuilder<File>(
-            future: fromAssetIOS_Android(pathPdf, 'result.pdf'),
+            future: withAnnot ? AnnotationPDF().addAnnotation(pathPdf: pathPdf, annotations: annotations).then((value)=>fromAssetIOS_Android(value, 'result.pdf')) : fromAssetIOS_Android(pathPdf, 'result.pdf'),
             builder: (context, snapshot) {
               return !snapshot.hasData || snapshot.data is !File
                   ? const Center( child: SizedBox(width: 60, height: 60, child: CircularProgressIndicator()))
@@ -245,14 +317,25 @@ List<String> filesPaths = [];
       }
       else{
         return FutureBuilder<List<String>>(
-            future: loadAssetAll(pathPdf: pathPdf,),
+            future: withAnnot ? AnnotationPDF().addAnnotation(pathPdf: pathPdf, annotations: annotations).then((value)=>loadAssetAll(pathPdf: value,)) :loadAssetAll(pathPdf: pathPdf,),
             builder: (context, snapshot) {
               return !snapshot.hasData
                   ? const Center( child: SizedBox(width: 60, height: 60, child: CircularProgressIndicator()))
                   :  SingleChildScrollView(
                         child: Column(
                             mainAxisSize: MainAxisSize.min,
-                            children: snapshot.data!.map((item) => Image.asset(item)).toList()
+                            children: snapshot.data!.map((item) => Stack(
+                              children: [
+                                Image.asset(item),
+                                ///интегрируется виджет области аннотации
+                               ...annotations!.where((element) => element.page == snapshot.data!.indexWhere((e) => e == item)).toList().map((e) => e.tapChild).toList(),
+                                // Positioned(
+                                //   left: 0,
+                                //   top: 0,
+                                //   child: Container(width: 50,height: 50,color: Colors.grey.withOpacity(0.4),),
+                                // )
+                              ],
+                            )).toList()
                       )
                     );
             });
