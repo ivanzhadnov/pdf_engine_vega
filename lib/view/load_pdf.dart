@@ -17,7 +17,12 @@ import '../edit/annotation_core.dart';
 ///бинарники бибилотек https://github.com/bblanchon/pdfium-binaries
 
 class LoadPdf{
-  late PdfiumWrap pdfium = PdfiumWrap(libraryPath: 'libpdfium.dylib');
+
+  LoadPdf(){
+    setPdfium();
+  }
+
+  late PdfiumWrap pdfium = PdfiumWrap();
   ///set pdfium
   Future<bool>setPdfium()async{
     if(!Platform.isMacOS)pdfium.dispose();
@@ -141,7 +146,7 @@ class LoadPdf{
   Future<List<Image>> loadAssetAsList({required String pathPdf, int ration = 1, String backgroundColor = '#FFFFFFFF'})async{
 
     List<Image> result = [];
-   await setPdfium().then((value)async{
+   ///await setPdfium().then((value)async{
      final directory = await getApplicationDocumentsDirectory();
      //final bytes = (await rootBundle.load(pathPdf)).buffer.asUint8List();
      late Uint8List bytes;
@@ -156,8 +161,8 @@ class LoadPdf{
 
      int pageCount = document.getPageCount();
      for(int i = 0; i < pageCount; i++){
-     //String fileName = DateTime.now().millisecondsSinceEpoch.toString();
-     String fileName = 'render';
+     String fileName = DateTime.now().millisecondsSinceEpoch.toString();
+     ///TODO String fileName = 'render';
      document.loadPage(i)
      //.renderPageAsBytes(300, 400, /*backgroundColor:  int.parse(backgroundColor, radix: 16),*/ flags: 1);
          .savePageAsJpg('${directory.path}${Platform.pathSeparator}$fileName$i.jpg', qualityJpg: 80, flags: 1)
@@ -168,7 +173,7 @@ class LoadPdf{
      );
      }
      //document.closeDocument().dispose();
-   });
+   ///});
 
     return result;
   }
@@ -202,7 +207,7 @@ class LoadPdf{
       await _pdfDocument.close();
 
     }else{
-      await setPdfium().then((value)async{
+     /// await setPdfium().then((value)async{
         final directory = await getApplicationDocumentsDirectory();
         late Uint8List bytes;
         ///загрузка из ассета, но нам может понадобиться загрузка из локального хранилища
@@ -226,7 +231,7 @@ class LoadPdf{
         //filesBytes.add(document.loadPage(i).renderPageAsBytes(300, 400, flags: 0, /*backgroundColor:  int.parse(backgroundColor, radix: 16)*/ ));
           filesBytes.add(bytes);
         }
-      });
+     /// });
 
     }
     return filesBytes;
@@ -238,7 +243,7 @@ class LoadPdf{
   ///загрузка файла PDF из ассета для всех ОС кроме ИОС и Web и помещение в файлы JPG по страницам
   Future<List<String>> loadAssetAll({required String pathPdf}) async {
   List<String> filesPaths = [];
-   await  setPdfium().then((value)async{
+  /// await  setPdfium().then((value)async{
      final directory = await getApplicationDocumentsDirectory();
      late Uint8List bytes;
      ///загрузка из ассета, но нам может понадобиться загрузка из локального хранилища
@@ -253,8 +258,8 @@ class LoadPdf{
      ///циклом собрать массив отрендеренных страниц для отображения
 
      for(int i = 0; i < countPages; i++){
-       //String fileName = DateTime.now().millisecondsSinceEpoch.toString();
-       String fileName = 'render';
+       String fileName = DateTime.now().millisecondsSinceEpoch.toString();
+       ///TODO String fileName = 'render';
        document.loadPage(i)
        ///в частности перечислить флаг для отображения аннотаций
            .savePageAsJpg('${directory.path}${Platform.pathSeparator}$fileName$i.jpg', qualityJpg: 80, flags: 1)
@@ -263,7 +268,7 @@ class LoadPdf{
      }
      //document.closeDocument().dispose();
 
-   });
+  // });
   return filesPaths;
   }
 
@@ -317,7 +322,7 @@ class LoadPdf{
       }
       else{
         return FutureBuilder<List<String>>(
-            future: withAnnot ? AnnotationPDF().addAnnotation(pathPdf: pathPdf, annotations: annotations).then((value)=>loadAssetAll(pathPdf: value,)) :loadAssetAll(pathPdf: pathPdf,),
+            future: withAnnot ? AnnotationPDF().addAnnotation(pathPdf: pathPdf, annotations: annotations).then((value)=>loadAssetAll(pathPdf: value,)) : loadAssetAll(pathPdf: pathPdf,),
             builder: (context, snapshot) {
               return !snapshot.hasData
                   ? const Center( child: SizedBox(width: 60, height: 60, child: CircularProgressIndicator()))
