@@ -50,6 +50,9 @@ class AnnotationItem{
   ///виджет аннотации для формирования дерева виджетов во внутреннем просмотрщике и создания кликабельности по аннотации
   Material.Widget tapChild = Material.Container();
 
+  ///тестируем рисование новой аннтотации
+  List<Material.Offset> line = [];
+
   AnnotationItem({
     required this.page,
     required this.annotationType,

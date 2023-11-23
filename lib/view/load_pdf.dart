@@ -9,6 +9,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:pdfx/pdfx.dart';
 
+import '../edit/annot_painter.dart';
 import '../edit/annotation_class.dart';
 import '../edit/annotation_core.dart';
 
@@ -22,10 +23,13 @@ class LoadPdf{
     setPdfium();
   }
 
-  late PdfiumWrap pdfium = PdfiumWrap();
+  PdfiumWrap? pdfium;
   ///set pdfium
   Future<bool>setPdfium()async{
-    if(!Platform.isMacOS)pdfium.dispose();
+    try{
+      if(!Platform.isMacOS)pdfium!.dispose();
+    }catch(e){}
+
     String libraryPath = '';
     final directory = await getApplicationDocumentsDirectory();
     if(Platform.isAndroid){
@@ -63,9 +67,9 @@ class LoadPdf{
     if(Platform.isIOS){
       result = await loadAssetAsListIOS(pathPdf: pathPdf, ration: ration, backgroundColor: backgroundColor);
     }else{
-    result = await loadAssetAsList(
-        pathPdf: pathPdf, ration: ration, backgroundColor: backgroundColor);
-  }
+      result = await loadAssetAsList(
+          pathPdf: pathPdf, ration: ration, backgroundColor: backgroundColor);
+    }
     return result;
   }
 
@@ -146,34 +150,34 @@ class LoadPdf{
   Future<List<Image>> loadAssetAsList({required String pathPdf, int ration = 1, String backgroundColor = '#FFFFFFFF'})async{
 
     List<Image> result = [];
-   ///await setPdfium().then((value)async{
-     final directory = await getApplicationDocumentsDirectory();
-     //final bytes = (await rootBundle.load(pathPdf)).buffer.asUint8List();
-     late Uint8List bytes;
-     ///загрузка из ассета, но нам может понадобиться загрузка из локального хранилища
-     try{
-       bytes = (await rootBundle.load(pathPdf)).buffer.asUint8List();
-     }catch(e){
-     bytes = (await File(pathPdf).readAsBytes());
-     }
+    ///await setPdfium().then((value)async{
+    final directory = await getApplicationDocumentsDirectory();
+    //final bytes = (await rootBundle.load(pathPdf)).buffer.asUint8List();
+    late Uint8List bytes;
+    ///загрузка из ассета, но нам может понадобиться загрузка из локального хранилища
+    try{
+      bytes = (await rootBundle.load(pathPdf)).buffer.asUint8List();
+    }catch(e){
+      bytes = (await File(pathPdf).readAsBytes());
+    }
 
-     PdfiumWrap document = pdfium.loadDocumentFromBytes(bytes);
+    PdfiumWrap document = pdfium!.loadDocumentFromBytes(bytes);
 
-     int pageCount = document.getPageCount();
-     for(int i = 0; i < pageCount; i++){
-     String fileName = DateTime.now().millisecondsSinceEpoch.toString();
-     ///TODO String fileName = 'render';
-     document.loadPage(i)
-     //.renderPageAsBytes(300, 400, /*backgroundColor:  int.parse(backgroundColor, radix: 16),*/ flags: 1);
-         .savePageAsJpg('${directory.path}${Platform.pathSeparator}$fileName$i.jpg', qualityJpg: 80, flags: 1)
-         .closePage();
-     result.add(
-     !Platform.isAndroid && !Platform.isWindows ? Image.asset('${directory.path}${Platform.pathSeparator}$fileName$i.jpg')
-         : Image.file(File('${directory.path}${Platform.pathSeparator}$fileName$i.jpg'))
-     );
-     }
-     //document.closeDocument().dispose();
-   ///});
+    int pageCount = document.getPageCount();
+    for(int i = 0; i < pageCount; i++){
+      String fileName = DateTime.now().millisecondsSinceEpoch.toString();
+      ///TODO String fileName = 'render';
+      document.loadPage(i)
+      //.renderPageAsBytes(300, 400, /*backgroundColor:  int.parse(backgroundColor, radix: 16),*/ flags: 1);
+          .savePageAsJpg('${directory.path}${Platform.pathSeparator}$fileName$i.jpg', qualityJpg: 80, flags: 1)
+          .closePage();
+      result.add(
+          !Platform.isAndroid && !Platform.isWindows ? Image.asset('${directory.path}${Platform.pathSeparator}$fileName$i.jpg')
+              : Image.file(File('${directory.path}${Platform.pathSeparator}$fileName$i.jpg'))
+      );
+    }
+    //document.closeDocument().dispose();
+    ///});
 
     return result;
   }
@@ -207,31 +211,31 @@ class LoadPdf{
       await _pdfDocument.close();
 
     }else{
-     /// await setPdfium().then((value)async{
-        final directory = await getApplicationDocumentsDirectory();
-        late Uint8List bytes;
-        ///загрузка из ассета, но нам может понадобиться загрузка из локального хранилища
-        try{
-          bytes = (await rootBundle.load(pathPdf)).buffer.asUint8List();
-        }catch(e){
+      /// await setPdfium().then((value)async{
+      final directory = await getApplicationDocumentsDirectory();
+      late Uint8List bytes;
+      ///загрузка из ассета, но нам может понадобиться загрузка из локального хранилища
+      try{
+        bytes = (await rootBundle.load(pathPdf)).buffer.asUint8List();
+      }catch(e){
         bytes = (await File(pathPdf).readAsBytes());
-        }
-        ///получить количество страниц
-        final document = pdfium.loadDocumentFromBytes(bytes);
-        int countPages = document.getPageCount();
-        //int width = document.getPageWidth().toInt();
-        //int height = document.getPageHeight().toInt();
-        ///циклом собрать массив отрендеренных страниц для отображения
+      }
+      ///получить количество страниц
+      final document = pdfium!.loadDocumentFromBytes(bytes);
+      int countPages = document.getPageCount();
+      //int width = document.getPageWidth().toInt();
+      //int height = document.getPageHeight().toInt();
+      ///циклом собрать массив отрендеренных страниц для отображения
 
-        for(int i = 0; i < countPages; i++){
-              document.loadPage(i)
-              .savePageAsJpg('${directory.path}${Platform.pathSeparator}render$i.jpg', qualityJpg: 100, flags: 1)
-              .closePage();
-          bytes = (await File('${directory.path}${Platform.pathSeparator}render$i.jpg').readAsBytes());
+      for(int i = 0; i < countPages; i++){
+        document.loadPage(i)
+            .savePageAsJpg('${directory.path}${Platform.pathSeparator}render$i.jpg', qualityJpg: 100, flags: 1)
+            .closePage();
+        bytes = (await File('${directory.path}${Platform.pathSeparator}render$i.jpg').readAsBytes());
         //filesBytes.add(document.loadPage(i).renderPageAsBytes(300, 400, flags: 0, /*backgroundColor:  int.parse(backgroundColor, radix: 16)*/ ));
-          filesBytes.add(bytes);
-        }
-     /// });
+        filesBytes.add(bytes);
+      }
+      /// });
 
     }
     return filesBytes;
@@ -242,34 +246,34 @@ class LoadPdf{
 
   ///загрузка файла PDF из ассета для всех ОС кроме ИОС и Web и помещение в файлы JPG по страницам
   Future<List<String>> loadAssetAll({required String pathPdf}) async {
-  List<String> filesPaths = [];
-  /// await  setPdfium().then((value)async{
-     final directory = await getApplicationDocumentsDirectory();
-     late Uint8List bytes;
-     ///загрузка из ассета, но нам может понадобиться загрузка из локального хранилища
-     try{
-       bytes = (await rootBundle.load(pathPdf)).buffer.asUint8List();
-     }catch(e){
-       bytes = (await File(pathPdf).readAsBytes());
-     }
-     ///получить количество страниц
-     final document = pdfium.loadDocumentFromBytes(bytes);
-     int countPages = document.getPageCount();
-     ///циклом собрать массив отрендеренных страниц для отображения
+    List<String> filesPaths = [];
+    /// await  setPdfium().then((value)async{
+    final directory = await getApplicationDocumentsDirectory();
+    late Uint8List bytes;
+    ///загрузка из ассета, но нам может понадобиться загрузка из локального хранилища
+    try{
+      bytes = (await rootBundle.load(pathPdf)).buffer.asUint8List();
+    }catch(e){
+      bytes = (await File(pathPdf).readAsBytes());
+    }
+    ///получить количество страниц
+    final document = pdfium!.loadDocumentFromBytes(bytes);
+    int countPages = document.getPageCount();
+    ///циклом собрать массив отрендеренных страниц для отображения
 
-     for(int i = 0; i < countPages; i++){
-       String fileName = DateTime.now().millisecondsSinceEpoch.toString();
-       ///TODO String fileName = 'render';
-       document.loadPage(i)
-       ///в частности перечислить флаг для отображения аннотаций
-           .savePageAsJpg('${directory.path}${Platform.pathSeparator}$fileName$i.jpg', qualityJpg: 80, flags: 1)
-           .closePage();
-       filesPaths.add('${directory.path}${Platform.pathSeparator}$fileName$i.jpg');
-     }
-     //document.closeDocument().dispose();
+    for(int i = 0; i < countPages; i++){
+      String fileName = DateTime.now().millisecondsSinceEpoch.toString();
+      ///TODO String fileName = 'render';
+      document.loadPage(i)
+      ///в частности перечислить флаг для отображения аннотаций
+          .savePageAsJpg('${directory.path}${Platform.pathSeparator}$fileName$i.jpg', qualityJpg: 80, flags: 1)
+          .closePage();
+      filesPaths.add('${directory.path}${Platform.pathSeparator}$fileName$i.jpg');
+    }
+    //document.closeDocument().dispose();
 
-  // });
-  return filesPaths;
+    // });
+    return filesPaths;
   }
 
   ///загрузка файла из ассета для ИОС
@@ -292,59 +296,88 @@ class LoadPdf{
     return completer.future;
   }
 
+
+
   ///выбираем тип виджета в зависимости от платформы на которой запущено приложение
-  Widget child({required String pathPdf, List<AnnotationItem>? annotations = const[]}){
+  Widget child({required String pathPdf, List<AnnotationItem>? annotations = const[], dynamic func}){
     bool withAnnot = annotations != null && annotations.isNotEmpty;
 
-      ///запасной вариант загрузки андроидов через FFI
-      if(Platform.isAndroid){
-        return FutureBuilder<List<String>>(
-            future: withAnnot ? AnnotationPDF().addAnnotation(pathPdf: pathPdf, annotations: annotations).then((value)=>loadAssetAll(pathPdf: value,)) : loadAssetAll(pathPdf: pathPdf,),
-            builder: (context, snapshot) {
-              return !snapshot.hasData
-                  ? const Center( child: SizedBox(width: 60, height: 60, child: CircularProgressIndicator()))
-                  :  SingleChildScrollView(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                        children: snapshot.data!.map((item) => Image.file(File(item),)).toList()
-                    ),
-                  );
-            });
-      }
-      else if(Platform.isIOS || Platform.isWindows){
-        return FutureBuilder<File>(
-            future: withAnnot ? AnnotationPDF().addAnnotation(pathPdf: pathPdf, annotations: annotations).then((value)=>fromAssetIOS_Android(value, 'result.pdf')) : fromAssetIOS_Android(pathPdf, 'result.pdf'),
-            builder: (context, snapshot) {
-              return !snapshot.hasData || snapshot.data is !File
-                  ? const Center( child: SizedBox(width: 60, height: 60, child: CircularProgressIndicator()))
-                  :  PDFViewer_iOS(file: snapshot.data!,);
-            });
-      }
-      else{
-        return FutureBuilder<List<String>>(
-            future: withAnnot ? AnnotationPDF().addAnnotation(pathPdf: pathPdf, annotations: annotations).then((value)=>loadAssetAll(pathPdf: value,)) : loadAssetAll(pathPdf: pathPdf,),
-            builder: (context, snapshot) {
-              return !snapshot.hasData
-                  ? const Center( child: SizedBox(width: 60, height: 60, child: CircularProgressIndicator()))
-                  :  SingleChildScrollView(
-                        child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: snapshot.data!.map((item) => Stack(
+    ///запасной вариант загрузки андроидов через FFI
+    if(Platform.isAndroid){
+      return FutureBuilder<List<String>>(
+          future: withAnnot ? AnnotationPDF().addAnnotation(pathPdf: pathPdf, annotations: annotations).then((value)=>loadAssetAll(pathPdf: value,)) : loadAssetAll(pathPdf: pathPdf,),
+          builder: (context, snapshot) {
+            return !snapshot.hasData
+                ? const Center( child: SizedBox(width: 60, height: 60, child: CircularProgressIndicator()))
+                :  SingleChildScrollView(
+              child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: snapshot.data!.map((item) => Image.file(File(item),)).toList()
+              ),
+            );
+          });
+    }
+    else if(Platform.isIOS || Platform.isWindows){
+      return FutureBuilder<File>(
+          future: withAnnot ? AnnotationPDF().addAnnotation(pathPdf: pathPdf, annotations: annotations).then((value)=>fromAssetIOS_Android(value, 'result.pdf')) : fromAssetIOS_Android(pathPdf, 'result.pdf'),
+          builder: (context, snapshot) {
+            return !snapshot.hasData || snapshot.data is !File
+                ? const Center( child: SizedBox(width: 60, height: 60, child: CircularProgressIndicator()))
+                :  PDFViewer_iOS(file: snapshot.data!,);
+          });
+    }
+    else{
+      return FutureBuilder<List<String>>(
+          future: withAnnot ? AnnotationPDF().addAnnotation(pathPdf: pathPdf, annotations: annotations).then((value)=>loadAssetAll(pathPdf: value,)) : loadAssetAll(pathPdf: pathPdf,),
+          builder: (context, snapshot) {
+            List<List<List<Offset>>> lines = [];
+            if(snapshot.hasData){
+              lines = List.generate(snapshot.data!.length, (_) => [[]]);
+            }
+
+            return !snapshot.hasData
+                ? const Center( child: SizedBox(width: 60, height: 60, child: CircularProgressIndicator()))
+                :  SingleChildScrollView(
+                child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: snapshot.data!.map((item) => GestureDetector(
+                        // onTapDown: (v){
+                        //       lines[snapshot.data!.indexWhere((e) => e == item)].add([]);
+                        //       func();
+                        //       },
+                      onPanEnd: (v){
+                        print('добавили элемент');
+                        lines[snapshot.data!.indexWhere((e) => e == item)].add([]);
+                      },
+                            onPanUpdate: (details) {
+                              ///print(details.localPosition);
+                              print(lines[snapshot.data!.indexWhere((e) => e == item)].length);
+                              lines[snapshot.data!.indexWhere((e) => e == item)].first.add(details.localPosition);
+                              //func();
+                            },
+                            child: Stack(
                               children: [
                                 Image.asset(item),
+
                                 ///интегрируется виджет области аннотации
-                               ...annotations!.where((element) => element.page == snapshot.data!.indexWhere((e) => e == item)).toList().map((e) => e.tapChild).toList(),
+                                ...annotations!.where((element) =>
+                                element.page == snapshot.data!.indexWhere((e) => e == item))
+                                    .toList().map((e) => e.tapChild)
+                                    .toList(),
+                                ...lines[snapshot.data!.indexWhere((e) => e == item)].map((_e) => FingerPaint(line:  _e,)).toList()
+
                                 // Positioned(
                                 //   left: 0,
                                 //   top: 0,
                                 //   child: Container(width: 50,height: 50,color: Colors.grey.withOpacity(0.4),),
                                 // )
                               ],
-                            )).toList()
-                      )
-                    );
-            });
-      }
+                            ))
+                    ).toList()
+                )
+            );
+          });
+    }
 
   }
 
