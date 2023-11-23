@@ -2,21 +2,34 @@ import 'dart:math';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 
+///class MapPage extends StatefulWidget {
+//   final bool centerRoute;
+//   MapPage({this.centerRoute = false}) : super();
+//
+//   @override
+//   MainMapPageState createState() => MainMapPageState();
+// }
 
-
-class FingerPaint extends StatelessWidget {
+class FingerPaint extends StatefulWidget {
   FingerPaint({
     required this.line
-});
-
+  });
   List<Offset> line = [];
 
   @override
+  FingerPaintState createState() => FingerPaintState();
+
+}
+
+class FingerPaintState extends State<FingerPaint> {
+
+
+  @override
   Widget build(BuildContext context) {
-    print("array points $line");
+    //print("array points $line");
     return CustomPaint(
         //size: Size(300, 300),
-        painter: MyPainter(line: line),
+        painter: MyPainter(line: widget.line),
     );
   }
 }
@@ -47,14 +60,15 @@ class MyPainter extends CustomPainter {
     // ];
     final points = line;
     final paint = Paint()
-      ..color = colors[_random.nextInt(colors.length)]
-      ..strokeWidth = 4
+      //..color = colors[_random.nextInt(colors.length)]
+      ..color = colors.first.withOpacity(0.2)
+      ..strokeWidth = 10
       ..strokeCap = StrokeCap.round;
     canvas.drawPoints(pointMode, points, paint);
   }
 
   @override
   bool shouldRepaint(CustomPainter old) {
-    return false;
+    return true;
   }
 }

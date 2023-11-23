@@ -296,7 +296,8 @@ class LoadPdf{
     return completer.future;
   }
 
-
+  List<List<List<Offset>>> lines = [];
+  double yLine = -1;
 
   ///выбираем тип виджета в зависимости от платформы на которой запущено приложение
   Widget child({required String pathPdf, List<AnnotationItem>? annotations = const[], dynamic func}){
@@ -330,48 +331,44 @@ class LoadPdf{
       return FutureBuilder<List<String>>(
           future: withAnnot ? AnnotationPDF().addAnnotation(pathPdf: pathPdf, annotations: annotations).then((value)=>loadAssetAll(pathPdf: value,)) : loadAssetAll(pathPdf: pathPdf,),
           builder: (context, snapshot) {
-            List<List<List<Offset>>> lines = [];
-            if(snapshot.hasData){
-              lines = List.generate(snapshot.data!.length, (_) => [[]]);
-            }
-
+             if(snapshot.hasData && lines.length < snapshot.data!.length){
+               lines = List.generate(snapshot.data!.length, (_) => []);
+             }
             return !snapshot.hasData
                 ? const Center( child: SizedBox(width: 60, height: 60, child: CircularProgressIndicator()))
                 :  SingleChildScrollView(
                 child: Column(
                     mainAxisSize: MainAxisSize.min,
-                    children: snapshot.data!.map((item) => GestureDetector(
-                        // onTapDown: (v){
-                        //       lines[snapshot.data!.indexWhere((e) => e == item)].add([]);
-                        //       func();
-                        //       },
-                      onPanEnd: (v){
-                        print('добавили элемент');
-                        lines[snapshot.data!.indexWhere((e) => e == item)].add([]);
-                      },
+                    children: snapshot.data!.map((item) => StatefulBuilder(
+                        builder: (BuildContext context, StateSetter setState) => GestureDetector(
+                        onPanStart: (v){
+                          lines[snapshot.data!.indexWhere((e) => e == item)].add([]);
+                          yLine = -1;
+                          setState((){});
+                        },
                             onPanUpdate: (details) {
-                              ///print(details.localPosition);
-                              print(lines[snapshot.data!.indexWhere((e) => e == item)].length);
-                              lines[snapshot.data!.indexWhere((e) => e == item)].first.add(details.localPosition);
-                              //func();
+                              ///TODO убрать отрицательные и больше просматриваемой области значения
+                              ///просто рисуем кривую
+                              //lines[snapshot.data!.indexWhere((e) => e == item)].last.add(details.localPosition);
+                              ///рисуем горизонтальную прямую
+                              if(yLine == -1){
+                                yLine = details.localPosition.dy;
+                              }
+                              lines[snapshot.data!.indexWhere((e) => e == item)].last.add(Offset(details.localPosition.dx, yLine));
+                              setState((){});
+
                             },
                             child: Stack(
                               children: [
                                 Image.asset(item),
-
                                 ///интегрируется виджет области аннотации
                                 ...annotations!.where((element) =>
                                 element.page == snapshot.data!.indexWhere((e) => e == item))
                                     .toList().map((e) => e.tapChild)
                                     .toList(),
-                                ...lines[snapshot.data!.indexWhere((e) => e == item)].map((_e) => FingerPaint(line:  _e,)).toList()
-
-                                // Positioned(
-                                //   left: 0,
-                                //   top: 0,
-                                //   child: Container(width: 50,height: 50,color: Colors.grey.withOpacity(0.4),),
-                                // )
+                                ...lines[snapshot.data!.indexWhere((e) => e == item)].map((e)=>FingerPaint(line:  e,)).toList()
                               ],
+                            )
                             ))
                     ).toList()
                 )
