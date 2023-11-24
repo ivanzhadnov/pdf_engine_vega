@@ -21,6 +21,7 @@ enum AnnotationType{
 
 ///описание аннотации для загрузки и выгрузки, а так же авто подбор нужного виджета для вставляемой и отображаемой на экране аннотации
 class AnnotationItem{
+  String? uuid;
   ///так как на одной странице может быть несколько аннотаций мы указываем номер страницы в документе, где лежит сия аннотация
   int page;
   ///Указание типа аннотации
@@ -66,6 +67,7 @@ class AnnotationItem{
     this.subject,
     this.points = const [],
     this.pointsInk = const [],
+    this.uuid
   }){
     child = setAnnotationWidget();
     tapChild = setWidgetTreeWidget();
@@ -116,7 +118,6 @@ class AnnotationItem{
         result = pw.PolyLineAnnotation(
             points: points ?? [],
             color: color,
-            //border: border,
             author: author,
             date: date,
             subject: subject,
@@ -149,7 +150,6 @@ class AnnotationItem{
                     height: height
                 ),
                 builder: pw.AnnotationUrl(content ?? '')
-
             )
         );
         break;
@@ -268,32 +268,34 @@ class AnnotationItem{
   }
 
   factory AnnotationItem.fromMap(Map<String, dynamic> json)  => AnnotationItem(
+    uuid: json['uuid'],
     page: json['page'] ?? 0,
     annotationType: AnnotationType.values.firstWhere((e) => e.name == json['annotationType']),
     color: PdfColor.fromHex(json['color']),
-    interiorColor: PdfColor.fromHex(json['interiorColor']),
+    //interiorColor: PdfColor.fromHex(json['interiorColor']),
     border: null,///TODO
     author: json['author'],
     date: DateTime.fromMillisecondsSinceEpoch(json['date']),
     content: json['content'],
     subject: json['subject'],
     points: (json['points'] as List).map((e) => PdfPoint(e['x'], e['y'])).toList().cast<PdfPoint>(),
-    pointsInk: [], ///TODO
+    pointsInk: []//(json['pointsInk'] as List).map((List<PdfPoint> e) => e.map((v)=>PdfPoint(v['x'], v['y']))).toList().cast<List<PdfPoint>>(), ///TODO
   );
 
 
   Map<String, dynamic> toMap() => {
+    "uuid" : uuid,
     "page": page,
     "annotationType": annotationType.name,
     "color": color!.toHex(),
-    "interiorColor": interiorColor!.toHex(),
+    //"interiorColor": interiorColor!.toHex(),
     "border": null, ///TODO
     "author": author,
     "date": date!.millisecondsSinceEpoch,
     "content": content,
     "subject": subject,
     "points": points!.map((e) => {'x' : e.x, 'y': e.y}).toList(),
-    "pointsInk": [], ///TODO
+    "pointsInk": pointsInk!.map((e) => e.map((v) => {'x' : v.x, 'y': v.y}).toList()).toList(),
   };
 
   ///диалог ввода комментария в аннотацию

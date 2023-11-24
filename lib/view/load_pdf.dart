@@ -352,7 +352,7 @@ class LoadPdf{
       return FutureBuilder<List<String>>(
           future: withAnnot ? AnnotationPDF().addAnnotation(pathPdf: pathPdf, annotations: annotations).then((value)=>loadAssetAll(pathPdf: value,)) : loadAssetAll(pathPdf: pathPdf,),
           builder: (context, snapshot) {
-            if(snapshot.hasData && lines.length != snapshot.data!.length){
+            if(snapshot.hasData && lines.length != snapshot.data!.length ){
               lines = List.generate(snapshot.data!.length, (_) => []);
               globalKeys = List.generate(snapshot.data!.length, (_) => GlobalKey());
               buttons = List.generate(snapshot.data!.length, (_) => AnnotState.inactive);
@@ -444,6 +444,7 @@ class LoadPdf{
                                     date: DateTime.now(),
 
                                   );
+                                  //print(AnnotationItem.fromMap({'uuid': null, 'page': 2, 'annotationType': 'inkAnnotation', 'color': '#00ff0080', 'border': null, 'author': 'Народ', 'date': 1700828655376, 'content': 'мссмти', 'subject': 'selectText', 'points': [], 'pointsInk': [[{'x': 67.0625, 'y': 258.1754150390625}, {'x': 446.60546875, 'y': 258.1754150390625}], [{'x': 66.55078125, 'y': 277.0230712890625}, {'x': 392.55078125, 'y': 277.0230712890625}], [{'x': 63.05078125, 'y': 305.4957275390625}, {'x': 376.9375, 'y': 305.4957275390625}]]}));
                                   newAnnot.pointsInk = lines[snapshot.data!.indexWhere((e) => e == item)].map((e) => newAnnot.convertPointsType(e)).toList();
                                   annotations.add(newAnnot);
                                   setState((){
