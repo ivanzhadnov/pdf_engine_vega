@@ -9,6 +9,7 @@ import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:pdfx/pdfx.dart';
+import 'package:visibility_detector/visibility_detector.dart';
 
 import '../edit/annot_buttons.dart';
 import '../edit/annot_painter.dart';
@@ -301,12 +302,30 @@ class LoadPdf{
   List<List<List<Offset>>> lines = [];
   double yLine = -1;
 
-  ///массив работы с кнопками в режиме редактирования аннотаций
-  List<AnnotState> buttons = [];
 
   ///массив для опредделения размеров окна с отображаемой страницей
   List<GlobalKey> globalKeys = [];
 
+  String oldPath = '';
+  List<String> oldListPaths = [];
+  int visiblyPage = 1;
+  ScrollController scrollController = ScrollController();
+
+  ///возвращаем уже сохраненные картинки с ПДФ для блокировки нежелательной перерисовки
+  Future<List<String>> returnOldList()async{
+    return oldListPaths;
+  }
+
+  ///обрабатываем нажатие по скролл контроллеру
+  changePage(int page, setState){
+    final RenderObject? renderBoxRed = globalKeys[page].currentContext!.findRenderObject();
+    final height = renderBoxRed?.semanticBounds.height;
+    final width = renderBoxRed?.paintBounds.width;
+    //print(height! * page);
+    scrollController.jumpTo(height! * page - 20);
+    setState();
+
+  }
 
   ///выбираем тип виджета в зависимости от платформы на которой запущено приложение
   Widget child({
@@ -319,9 +338,16 @@ class LoadPdf{
     ///направление прокрутки при просмотре файла
     Axis? scrollDirection = Axis.vertical,
     ///подключение механизмов работы с аннотациями
-    bool? editable = false
+    bool? editable = false,
+    ///получаем режим рисования из вне
+    required AnnotState mode,
+
   }){
+    print('переерисовали');
     bool withAnnot = annotations != null || annotations!.isNotEmpty;
+
+
+
 
     ///запасной вариант загрузки андроидов через FFI
     if(Platform.isAndroid){
@@ -332,10 +358,10 @@ class LoadPdf{
                 ? const Center( child: SizedBox(width: 60, height: 60, child: CircularProgressIndicator()))
                 :  SingleChildScrollView(
               ///TODO scrollDirection: scrollDirection!,
-                  child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: snapshot.data!.map((item) => Image.file(File(item),)).toList()
-                  ),
+              child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: snapshot.data!.map((item) => Image.file(File(item),)).toList()
+              ),
             );
           });
     }
@@ -350,129 +376,169 @@ class LoadPdf{
     }
     else{
       return FutureBuilder<List<String>>(
-          future: withAnnot ? AnnotationPDF().addAnnotation(pathPdf: pathPdf, annotations: annotations).then((value)=>loadAssetAll(pathPdf: value,)) : loadAssetAll(pathPdf: pathPdf,),
+          future: withAnnot ?
+          oldPath != pathPdf ? AnnotationPDF().addAnnotation(pathPdf: pathPdf, annotations: annotations).then((value)=>loadAssetAll(pathPdf: value,))
+              : returnOldList()
+              : loadAssetAll(pathPdf: pathPdf,),
           builder: (context, snapshot) {
             if(snapshot.hasData && lines.length != snapshot.data!.length ){
-              lines = List.generate(snapshot.data!.length, (_) => []);
-              globalKeys = List.generate(snapshot.data!.length, (_) => GlobalKey());
-              buttons = List.generate(snapshot.data!.length, (_) => AnnotState.inactive);
+
+              ///блокируем перерисовки
+              if(oldPath != pathPdf){
+                lines = List.generate(snapshot.data!.length, (_) => []);
+                globalKeys = List.generate(snapshot.data!.length, (_) => GlobalKey());
+                oldListPaths = snapshot.data!;
+                oldPath = pathPdf;
+              }
+
+              ///работаем с удалением рисунка
+              if(mode == AnnotState.delete){
+                mode = AnnotState.inactive;
+                lines.removeAt(visiblyPage);
+              }
+              ///работаем с кнопкой отменить
+              else if(mode == AnnotState.undo){
+                ///lines.removeAt(activePage);
+              }
+              ///работаем с кнопкой вернуть
+              else if(mode == AnnotState.redo){
+                ///lines.removeAt(activePage);
+              }
+              ///работаем с кнопкой ластик
+              else if(mode == AnnotState.erase){
+                ///lines.removeAt(activePage);
+              }
+
             }
-
             List<Widget> children = snapshot.hasData ? snapshot.data!.map((item) => StatefulBuilder(
-                builder: (BuildContext context, StateSetter setState) => GestureDetector(
-                    onPanStart: (v){
-                      if(buttons[snapshot.data!.indexWhere((e) => e == item)] == AnnotState.selectText || buttons[snapshot.data!.indexWhere((e) => e == item)] == AnnotState.freeForm){
-                        lines[snapshot.data!.indexWhere((e) => e == item)].add([]);
-                        yLine = -1;
-                        setState((){});
-                      }
-                    },
-                    onPanEnd: (v){
-                      if(buttons[snapshot.data!.indexWhere((e) => e == item)] == AnnotState.selectText){
-                        final temp = lines[snapshot.data!.indexWhere((e) => e == item)].last;
-                        lines[snapshot.data!.indexWhere((e) => e == item)].last = [temp.first, temp.last];
-                        setState((){});
-                      }
-                    },
-                    onPanUpdate: (details) {
-                      if(buttons[snapshot.data!.indexWhere((e) => e == item)] == AnnotState.selectText || buttons[snapshot.data!.indexWhere((e) => e == item)] == AnnotState.freeForm){
-                        final RenderObject? renderBoxRed =
-                        globalKeys[snapshot.data!.indexWhere((e) => e == item)].currentContext!.findRenderObject();
-                        final maxHeight = renderBoxRed?.paintBounds.height;
-                        final maxWidth = renderBoxRed?.paintBounds.width;
-
-                        double x = 0;
-                        double y = 0;
-
-                        if(details.localPosition.dx < maxWidth! && details.localPosition.dx > 0){
-                          x = details.localPosition.dx;
-                        }else{
-                          x = details.localPosition.dx > 0 ? maxWidth - 10 : 0;
+                builder: (BuildContext context, StateSetter setState){
+                  int index = snapshot.data!.indexWhere((e) => e == item);
+                  return GestureDetector(
+                      onPanStart: (v){
+                        if(mode == AnnotState.selectText || mode == AnnotState.freeForm){
+                          lines[index].add([]);
+                          yLine = -1;
+                          setState((){});
                         }
-                        if(details.localPosition.dy < maxHeight! && details.localPosition.dy > 0){
-                          y = details.localPosition.dy;
-                        }else{
-                          y = details.localPosition.dy > 0 ? maxHeight - 10 : 0;
+                      },
+                      onPanEnd: (v){
+                        if(mode == AnnotState.selectText){
+                          final temp = lines[index].last;
+                          lines[index].last = [temp.first, temp.last];
+                          setState((){});
                         }
+                      },
+                      onPanUpdate: (details) {
+                        if(mode == AnnotState.selectText || mode == AnnotState.freeForm){
+                          final RenderObject? renderBoxRed = globalKeys[index].currentContext!.findRenderObject();
+                          final maxHeight = renderBoxRed?.paintBounds.height;
+                          final maxWidth = renderBoxRed?.paintBounds.width;
 
+                          double x = 0;
+                          double y = 0;
 
-                        if(buttons[snapshot.data!.indexWhere((e) => e == item)] == AnnotState.selectText){
-                          ///рисуем горизонтальную прямую
-                          if(yLine == -1){
-                            yLine = y;
+                          if(details.localPosition.dx < maxWidth! && details.localPosition.dx > 0){
+                            x = details.localPosition.dx;
+                          }else{
+                            x = details.localPosition.dx > 0 ? maxWidth - 10 : 0;
                           }
-                          lines[snapshot.data!.indexWhere((e) => e == item)].last.add(Offset(x, yLine));
-                        }else{
-                          ///просто рисуем кривую
-                          lines[snapshot.data!.indexWhere((e) => e == item)].last.add(Offset(x, y));
-                        }
-                        setState((){});
-                      }
-                    },
-                    child: Container(
-                        key: globalKeys[snapshot.data!.indexWhere((e) => e == item)],
-                        margin: const EdgeInsets.fromLTRB(5, 5, 5, 5),
-                        child: Stack(
-                          children: [
-                            Image.asset(item),
-                            ///интегрируется виджет области аннотации
-                            ...annotations.where((element) =>
-                            element.page == snapshot.data!.indexWhere((e) => e == item))
-                                .toList().map((e) => e.tapChild)
-                                .toList(),
-                            ...lines[snapshot.data!.indexWhere((e) => e == item)].map((e)=>FingerPaint(line:  e, mode: buttons[snapshot.data!.indexWhere((e) => e == item)])).toList(),
-                            ManageAnnotButtons(
-                              mode: buttons[snapshot.data!.indexWhere((e) => e == item)],
-                              onDrawTap: ()=>setState(()=>buttons[snapshot.data!.indexWhere((e) => e == item)] = AnnotState.freeForm),
-                              onTextTap: ()=>setState(()=>buttons[snapshot.data!.indexWhere((e) => e == item)] = AnnotState.selectText),
-                              onClearTap: ()=>setState((){
-                                buttons[snapshot.data!.indexWhere((e) => e == item)] = AnnotState.inactive;
-                                lines.removeAt(snapshot.data!.indexWhere((e) => e == item));
-                              }),
-                              onAproveTap: ()=>addCommentDialog(context).then((value){
-                                if(value){
-                                  AnnotationItem newAnnot = AnnotationItem(
-                                    subject: buttons[snapshot.data!.indexWhere((e) => e == item)].name,
-                                    author: 'Народ',
-                                    page: snapshot.data!.indexWhere((e) => e == item),
-                                    annotationType: AnnotationType.inkAnnotation,
-                                    color: buttons[snapshot.data!.indexWhere((e) => e == item)] == AnnotState.freeForm ? PDF.PdfColors.blue : PDF.PdfColor.fromHex('#00ff0080'),
-                                    border: PDF.PdfBorder(PDF.PdfDocument(), buttons[snapshot.data!.indexWhere((e) => e == item)] == AnnotState.freeForm ? 4 : 12),
-                                    //interiorColor: PDF.PdfColors.blue,
-                                    pointsInk:lines[snapshot.data!.indexWhere((e) => e == item)].map((e) => AnnotationItem(page: 0, annotationType: AnnotationType.inkAnnotation).convertPointsType(e)).toList()  ,
-                                    content: commentBody,
-                                    date: DateTime.now(),
+                          if(details.localPosition.dy < maxHeight! && details.localPosition.dy > 0){
+                            y = details.localPosition.dy;
+                          }else{
+                            y = details.localPosition.dy > 0 ? maxHeight - 10 : 0;
+                          }
 
-                                  );
-                                  //print(AnnotationItem.fromMap({'uuid': null, 'page': 2, 'annotationType': 'inkAnnotation', 'color': '#00ff0080', 'border': null, 'author': 'Народ', 'date': 1700828655376, 'content': 'мссмти', 'subject': 'selectText', 'points': [], 'pointsInk': [[{'x': 67.0625, 'y': 258.1754150390625}, {'x': 446.60546875, 'y': 258.1754150390625}], [{'x': 66.55078125, 'y': 277.0230712890625}, {'x': 392.55078125, 'y': 277.0230712890625}], [{'x': 63.05078125, 'y': 305.4957275390625}, {'x': 376.9375, 'y': 305.4957275390625}]]}));
-                                  newAnnot.pointsInk = lines[snapshot.data!.indexWhere((e) => e == item)].map((e) => newAnnot.convertPointsType(e)).toList();
-                                  annotations.add(newAnnot);
-                                  setState((){
-                                    buttons[snapshot.data!.indexWhere((e) => e == item)] = AnnotState.inactive;
-                                    lines.removeAt(snapshot.data!.indexWhere((e) => e == item));
-                                  });
-                                  func();
-                                }
-                              }),
-                            )
-                          ],
-                        )
-                    )
-                ))).toList() : [];
+                          if(mode == AnnotState.selectText){
+                            ///рисуем горизонтальную прямую
+                            if(yLine == -1){
+                              yLine = y;
+                            }
+                            lines[index].last.add(Offset(x, yLine));
+                          }else{
+                            ///просто рисуем кривую
+                            lines[index].last.add(Offset(x, y));
+                          }
+                          setState((){});
+                        }
+                      },
+                      child: VisibilityDetector(
+                          key: ValueKey("$index"),
+                          onVisibilityChanged: (VisibilityInfo info) {
+                            //debugPrint("${index} of my widget is visible");
+                            visiblyPage = index;
+                            visiblyPage = int.parse(info.key.toString().replaceAll('[<\'', '').replaceAll('\'>]', ''));
+                            func();
+                          },
+                          child:Container(
+                              key: globalKeys[index],
+                              margin: const EdgeInsets.fromLTRB(5, 5, 5, 5),
+                              child: Stack(
+                                children: [
+                                  Image.asset(item),
+                                  ///интегрируется виджет области аннотации
+                                  ...annotations.where((element) =>
+                                  element.page == index)
+                                      .toList().map((e) => e.tapChild)
+                                      .toList(),
+                                  ...lines[index].map((e)=>FingerPaint(line:  e, mode: mode/*buttons[index]*/)).toList(),
+                                  /*ManageAnnotButtons(
+                                  mode: buttons[snapshot.data!.indexWhere((e) => e == item)],
+                                  onDrawTap: ()=>setState(()=>buttons[index] = AnnotState.freeForm),
+                                  onTextTap: ()=>setState(()=>buttons[index] = AnnotState.selectText),
+                                  onClearTap: ()=>setState((){
+                                    buttons[index] = AnnotState.inactive;
+                                    lines.removeAt(index);
+                                  }),
+                                  onAproveTap: ()=>addCommentDialog(context).then((value){
+                                    if(value){
+                                      AnnotationItem newAnnot = AnnotationItem(
+                                        subject: buttons[index].name,
+                                        author: 'Народ',
+                                        page: index,
+                                        annotationType: AnnotationType.inkAnnotation,
+                                        color: buttons[index] == AnnotState.freeForm ? PDF.PdfColors.blue : PDF.PdfColor.fromHex('#00ff0080'),
+                                        border: PDF.PdfBorder(PDF.PdfDocument(), buttons[index] == AnnotState.freeForm ? 4 : 12),
+                                        //interiorColor: PDF.PdfColors.blue,
+                                        pointsInk:lines[index].map((e) => AnnotationItem(page: 0, annotationType: AnnotationType.inkAnnotation).convertPointsType(e)).toList()  ,
+                                        content: commentBody,
+                                        date: DateTime.now(),
+
+                                      );
+                                      //print(AnnotationItem.fromMap({'uuid': null, 'page': 2, 'annotationType': 'inkAnnotation', 'color': '#00ff0080', 'border': null, 'author': 'Народ', 'date': 1700828655376, 'content': 'мссмти', 'subject': 'selectText', 'points': [], 'pointsInk': [[{'x': 67.0625, 'y': 258.1754150390625}, {'x': 446.60546875, 'y': 258.1754150390625}], [{'x': 66.55078125, 'y': 277.0230712890625}, {'x': 392.55078125, 'y': 277.0230712890625}], [{'x': 63.05078125, 'y': 305.4957275390625}, {'x': 376.9375, 'y': 305.4957275390625}]]}));
+                                      newAnnot.pointsInk = lines[index].map((e) => newAnnot.convertPointsType(e)).toList();
+                                      annotations.add(newAnnot);
+                                      setState((){
+                                        buttons[index] = AnnotState.inactive;
+                                        lines.removeAt(index);
+                                      });
+                                      oldPath = '';
+                                      func();
+                                    }
+                                  }),
+                                )*/
+                                ],
+                              )
+                          )
+                      )
+                  );
+                }
+            )).toList() : [];
 
             return !snapshot.hasData
                 ? const Center( child: SizedBox(width: 60, height: 60, child: CircularProgressIndicator()))
                 : scrollDirection == Axis.horizontal ? ListView(
-                  shrinkWrap: true,
-                  physics: const ScrollPhysics(),
-                  scrollDirection: scrollDirection!,
-                  children: children
+                shrinkWrap: true,
+                physics: const ScrollPhysics(),
+                scrollDirection: scrollDirection!,
+                controller: scrollController,
+                children: children
             ) : SingleChildScrollView(
-              physics:  const ScrollPhysics(),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: children,
-              )
+                controller: scrollController,
+                physics:  const ScrollPhysics(),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: children,
+                )
             );
           });
     }
@@ -564,7 +630,6 @@ class LoadPdf{
                               RawMaterialButton(
                                 constraints: constraints,
                                 onPressed: (){
-
                                   commentBody = '';
                                   result = false;
                                   Navigator.of(context).pop();

@@ -1,5 +1,6 @@
 
 import 'package:flutter/material.dart';
+import '../edit/annot_buttons.dart';
 import 'load_pdf.dart';
 
 ///основной виджет просмотра PDF
@@ -40,7 +41,7 @@ class PDFViewerState extends State<PDFViewer> {
     return SizedBox(
           width: widget.width,
           height: widget.height,
-          child: load.child(pathPdf: widget.path),
+          child: load.child(pathPdf: widget.path, mode: AnnotState.inactive),
         );
   }
 }

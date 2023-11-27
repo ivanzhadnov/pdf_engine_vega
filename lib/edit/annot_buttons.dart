@@ -6,6 +6,10 @@ enum AnnotState{
   selectText,
   freeForm,
   inactive,
+  erase,
+  delete,
+  undo,
+  redo
 }
 
 

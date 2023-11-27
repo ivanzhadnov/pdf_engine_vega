@@ -52,7 +52,7 @@ class AnnotationPDF{
     String tempName = 'output.pdf';
     final file = File('${directory.path}${Platform.pathSeparator}$tempName');
     if(await file.exists()){
-      file.delete();
+      ///file.delete();
     }
     await file.writeAsBytes(await pdf.save());
     ///показываем пользователю
