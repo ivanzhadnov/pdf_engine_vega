@@ -17,6 +17,8 @@ import '../edit/annotation_class.dart';
 import '../edit/annotation_core.dart';
 import 'package:pdf_engine_vega/pdf_engine_vega.dart' as PDF;
 
+import '../util/piont_in_circle.dart';
+
 
 
 ///бинарники бибилотек https://github.com/bblanchon/pdfium-binaries
@@ -300,6 +302,7 @@ class LoadPdf{
   }
 
   List<List<List<Offset>>> lines = [];
+  ///установщик оси У для выделения текста
   double yLine = -1;
 
 
@@ -308,6 +311,8 @@ class LoadPdf{
 
   String oldPath = '';
   List<String> oldListPaths = [];
+
+  ///индикация активной страницы и перелистывание страниц
   int visiblyPage = 1;
   ScrollController scrollController = ScrollController();
 
@@ -321,11 +326,18 @@ class LoadPdf{
     final RenderObject? renderBoxRed = globalKeys[page].currentContext!.findRenderObject();
     final height = renderBoxRed?.semanticBounds.height;
     final width = renderBoxRed?.paintBounds.width;
-    //print(height! * page);
-    scrollController.jumpTo(height! * page - 20);
+    scrollController.jumpTo(height! * page - 30);
     setState();
-
   }
+
+  ///переменные для работы с ластиком
+  double eraseRadius = 10.0;
+  Offset erasePosition = Offset(-100, -100);
+  List<List<List<Offset>>> erasePositions = [];
+  ///формируем разорванные ластиком массивы, после добавим их в основной массив
+  List<List<Offset>> brokenLists = [];
+  ///формируем список массивов, которые нужно будет удалить после обработки на пересечение с ластиком
+  List indexToDelete = [];
 
   ///выбираем тип виджета в зависимости от платформы на которой запущено приложение
   Widget child({
@@ -343,11 +355,7 @@ class LoadPdf{
     required AnnotState mode,
 
   }){
-    print('переерисовали');
     bool withAnnot = annotations != null || annotations!.isNotEmpty;
-
-
-
 
     ///запасной вариант загрузки андроидов через FFI
     if(Platform.isAndroid){
@@ -382,50 +390,62 @@ class LoadPdf{
               : loadAssetAll(pathPdf: pathPdf,),
           builder: (context, snapshot) {
             if(snapshot.hasData && lines.length != snapshot.data!.length ){
-
               ///блокируем перерисовки
               if(oldPath != pathPdf){
                 lines = List.generate(snapshot.data!.length, (_) => []);
+                erasePositions = List.generate(snapshot.data!.length, (_) => []);
                 globalKeys = List.generate(snapshot.data!.length, (_) => GlobalKey());
                 oldListPaths = snapshot.data!;
                 oldPath = pathPdf;
               }
-
-              ///работаем с удалением рисунка
-              if(mode == AnnotState.delete){
-                mode = AnnotState.inactive;
-                lines.removeAt(visiblyPage);
-              }
-              ///работаем с кнопкой отменить
-              else if(mode == AnnotState.undo){
-                ///lines.removeAt(activePage);
-              }
-              ///работаем с кнопкой вернуть
-              else if(mode == AnnotState.redo){
-                ///lines.removeAt(activePage);
-              }
-              ///работаем с кнопкой ластик
-              else if(mode == AnnotState.erase){
-                ///lines.removeAt(activePage);
-              }
-
             }
             List<Widget> children = snapshot.hasData ? snapshot.data!.map((item) => StatefulBuilder(
                 builder: (BuildContext context, StateSetter setState){
                   int index = snapshot.data!.indexWhere((e) => e == item);
                   return GestureDetector(
+                      onTap: (){
+                        ///уточняем номер текущей страницы
+                        visiblyPage = index;
+                        try{
+                          func();
+                        }catch(e){}
+                      },
                       onPanStart: (v){
                         if(mode == AnnotState.selectText || mode == AnnotState.freeForm){
                           lines[index].add([]);
                           yLine = -1;
                           setState((){});
+                        }else if(mode == AnnotState.erase){
+                          erasePositions[index].add([]);
+                          setState((){});
                         }
                       },
                       onPanEnd: (v){
+                        ///формируем ровную и без лишних точек линию выделения текста, так эстетичнее и уменьшается нагрузка
                         if(mode == AnnotState.selectText){
                           final temp = lines[index].last;
                           lines[index].last = [temp.first, temp.last];
                           setState((){});
+                          try{
+                            func();
+                          }catch(e){}
+                        }
+                        ///сформировать стертую кривую из координат ластика
+                        if(mode == AnnotState.erase){
+                          // print(lines[index].length);
+                          // for(int i = 0; i < indexToDelete.length; i++){
+                          //   lines[index].removeWhere((e) => e == indexToDelete[i]);
+                          // }
+                          // for(int i = 0; i < brokenLists.length; i++){
+                          //   if(brokenLists[i].isNotEmpty){
+                          //     lines[index].add(brokenLists[i]);
+                          //   }
+                          // }
+                          // brokenLists = [];
+                          // indexToDelete = [];
+                          // //erasePositions[index] = [];
+                          // print(lines[index].length);
+                          // setState((){});
                         }
                       },
                       onPanUpdate: (details) {
@@ -433,10 +453,8 @@ class LoadPdf{
                           final RenderObject? renderBoxRed = globalKeys[index].currentContext!.findRenderObject();
                           final maxHeight = renderBoxRed?.paintBounds.height;
                           final maxWidth = renderBoxRed?.paintBounds.width;
-
                           double x = 0;
                           double y = 0;
-
                           if(details.localPosition.dx < maxWidth! && details.localPosition.dx > 0){
                             x = details.localPosition.dx;
                           }else{
@@ -447,7 +465,6 @@ class LoadPdf{
                           }else{
                             y = details.localPosition.dy > 0 ? maxHeight - 10 : 0;
                           }
-
                           if(mode == AnnotState.selectText){
                             ///рисуем горизонтальную прямую
                             if(yLine == -1){
@@ -459,15 +476,61 @@ class LoadPdf{
                             lines[index].last.add(Offset(x, y));
                           }
                           setState((){});
+                          try{
+                            func();
+                          }catch(e){}
+                        }else if(mode == AnnotState.erase){
+                          ///print('режим стиралки ${details.localPosition}');
+                          erasePosition = Offset(details.localPosition.dx, details.localPosition.dy);
+                          setState((){});
+                          if(erasePositions[index].last.isNotEmpty){
+                            if(erasePositions[index].last.last.dx > erasePosition.dx - (eraseRadius)
+                                || erasePositions[index].last.last.dx < erasePosition.dx + (eraseRadius)
+                                || erasePositions[index].last.last.dy > erasePosition.dy - (eraseRadius )
+                                || erasePositions[index].last.last.dy < erasePosition.dy + (eraseRadius )
+                            ){
+                              erasePositions[index].last.add(erasePosition);
+                              for(int i = 0; i < lines[index].length; i++){
+                                for(int ii = 0; ii < lines[index][i].length; ii++){
+                                  bool result = belongsToCircle(x: lines[index][i][ii].dx, y: lines[index][i][ii].dy, centerX: erasePosition.dx, centerY: erasePosition.dy, radius: eraseRadius);
+                                  if(result){
+                                    ///надо удалить из brokenLists массивы, где присутсвует удаляемая точка
+                                    brokenLists.removeWhere((e) => e.contains(lines[index][i][ii]) || e.isEmpty || e.length < 2);
+                                    ///print('принадлежит ли точка линии кругу ластика ${result}, ластик $erasePosition, точка ${lines[index][i][ii]}');
+                                    int splitIndex = ii; // Индекс, на котором нужно разорвать массив
+                                    brokenLists.add(lines[index][i].sublist(0, splitIndex));
+                                    brokenLists.add(lines[index][i].sublist(splitIndex));
+                                    indexToDelete.add(lines[index][i]);
+                                  }
+                                }
+                              }
+                              for(int i = 0; i < indexToDelete.length; i++){
+                                lines[index].removeWhere((e) => e == indexToDelete[i]);
+                              }
+                              for(int i = 0; i < brokenLists.length; i++){
+                                if(brokenLists[i].isNotEmpty){
+                                  lines[index].add(brokenLists[i]);
+                                }
+                              }
+                              brokenLists = [];
+                              indexToDelete = [];
+                              setState((){});
+                            }
+                          }else{
+                            erasePositions[index].last.add(erasePosition);
+                          }
+
+
                         }
                       },
                       child: VisibilityDetector(
                           key: ValueKey("$index"),
                           onVisibilityChanged: (VisibilityInfo info) {
-                            //debugPrint("${index} of my widget is visible");
-                            visiblyPage = index;
                             visiblyPage = int.parse(info.key.toString().replaceAll('[<\'', '').replaceAll('\'>]', ''));
-                            func();
+                            ///print('${DateTime.now()} page $visiblyPage');
+                            try{
+                              func();
+                            }catch(e){}
                           },
                           child:Container(
                               key: globalKeys[index],
@@ -480,7 +543,21 @@ class LoadPdf{
                                   element.page == index)
                                       .toList().map((e) => e.tapChild)
                                       .toList(),
-                                  ...lines[index].map((e)=>FingerPaint(line:  e, mode: mode/*buttons[index]*/)).toList(),
+                                  ...lines[index].map((e)=>FingerPaint(line:  e, mode: mode == AnnotState.erase ? AnnotState.freeForm : mode)).toList(),
+                                 /* if(mode == AnnotState.erase)...erasePositions[index].map((e)=>FingerPaint(line:  e, mode: AnnotState.erase)).toList(),*/
+                                  ///указатель ластика
+                                  if(mode == AnnotState.erase) Positioned(
+                                    top: erasePosition.dy - eraseRadius,
+                                    left: erasePosition.dx - eraseRadius,
+                                    child: Container(
+                                      width: eraseRadius * 2,
+                                      height: eraseRadius * 2,
+                                      decoration: const BoxDecoration(
+                                          color: Colors.orange,
+                                          shape: BoxShape.circle
+                                      ),
+                                    ),
+                                  ),
                                   /*ManageAnnotButtons(
                                   mode: buttons[snapshot.data!.indexWhere((e) => e == item)],
                                   onDrawTap: ()=>setState(()=>buttons[index] = AnnotState.freeForm),
