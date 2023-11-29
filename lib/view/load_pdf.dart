@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/cupertino.dart';
 import 'package:path/path.dart' as path;
 import 'package:pdf_engine_vega/view/view_ios.dart';
+import 'package:pdf_engine_vega/view/widgets/annot_eraser.dart';
 import 'package:pdfium_bindings/pdfium_bindings.dart';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
@@ -15,8 +16,8 @@ import '../edit/annot_buttons.dart';
 import '../edit/annot_painter.dart';
 import '../edit/annotation_class.dart';
 import '../edit/annotation_core.dart';
-import 'package:pdf_engine_vega/pdf_engine_vega.dart' as PDF;
 
+import '../edit/bookmark_class.dart';
 import '../util/piont_in_circle.dart';
 
 
@@ -172,8 +173,11 @@ class LoadPdf{
 
     int pageCount = document.getPageCount();
     for(int i = 0; i < pageCount; i++){
-      String fileName = DateTime.now().millisecondsSinceEpoch.toString();
-      ///TODO String fileName = 'render';
+      //String fileName = DateTime.now().millisecondsSinceEpoch.toString();
+      String fileName = 'render';
+      imageCache.evict(FileImage(File('${directory.path}${Platform.pathSeparator}$fileName$i.jpg')), includeLive: true);
+      imageCache.clear();
+      imageCache.clearLiveImages();
       document.loadPage(i)
       //.renderPageAsBytes(300, 400, /*backgroundColor:  int.parse(backgroundColor, radix: 16),*/ flags: 1);
           .savePageAsJpg('${directory.path}${Platform.pathSeparator}$fileName$i.jpg', qualityJpg: 80, flags: 1)
@@ -235,6 +239,9 @@ class LoadPdf{
       ///циклом собрать массив отрендеренных страниц для отображения
 
       for(int i = 0; i < countPages; i++){
+        imageCache.evict(FileImage(File('${directory.path}${Platform.pathSeparator}render$i.jpg')), includeLive: true);
+        imageCache.clear();
+        imageCache.clearLiveImages();
         document.loadPage(i)
             .savePageAsJpg('${directory.path}${Platform.pathSeparator}render$i.jpg', qualityJpg: 100, flags: 1)
             .closePage();
@@ -267,8 +274,12 @@ class LoadPdf{
     ///циклом собрать массив отрендеренных страниц для отображения
 
     for(int i = 0; i < countPages; i++){
-      String fileName = DateTime.now().millisecondsSinceEpoch.toString();
-      ///TODO String fileName = 'render';
+      //String fileName = DateTime.now().millisecondsSinceEpoch.toString();
+
+      String fileName = 'render';
+      imageCache.evict(FileImage(File('${directory.path}${Platform.pathSeparator}$fileName$i.jpg')), includeLive: true);
+      imageCache.clear();
+      imageCache.clearLiveImages();
       document.loadPage(i)
       ///в частности перечислить флаг для отображения аннотаций
           .savePageAsJpg('${directory.path}${Platform.pathSeparator}$fileName$i.jpg', qualityJpg: 80, flags: 1)
@@ -288,7 +299,7 @@ class LoadPdf{
 
     try {
       var dir = await getApplicationDocumentsDirectory();
-      File file = File("${dir.path}/$filename");
+      File file = File("${dir.path}${Platform.pathSeparator}$filename");
       var data = await rootBundle.load(asset);
       var bytes = data.buffer.asUint8List();
       print('длина фалйа в байтах 2 ${bytes.length}');
@@ -353,9 +364,139 @@ class LoadPdf{
     bool? editable = false,
     ///получаем режим рисования из вне
     required AnnotState mode,
-
+    ///номера страниц на которых установлены закладки
+    List<BookMarkPDF>? bookmarks,
+    ///поворот документа
+    int rotation = 0,
+    ///размеры экрана
+    double? width,
+    double? height,
   }){
+    imageCache.clear();
+    imageCache.clearLiveImages();
     bool withAnnot = annotations != null || annotations!.isNotEmpty;
+    ///обработка нажатия на страницу
+    void onTap(int index){
+      ///уточняем номер текущей страницы
+      visiblyPage = index;
+      try{
+        func();
+      }catch(e){}
+    }
+    ///обработка начала рисования
+    void onPanStart(v, int index, setState){
+      if(mode == AnnotState.selectText || mode == AnnotState.freeForm){
+        lines[index].add([]);
+        yLine = -1;
+        setState((){});
+      }else if(mode == AnnotState.erase){
+        erasePositions[index].add([]);
+        setState((){});
+      }
+    }
+    ///обработка завершения рисования
+    void onPanEnd(v, int index, setState){
+      ///формируем ровную и без лишних точек линию выделения текста, так эстетичнее и уменьшается нагрузка
+      if(mode == AnnotState.selectText){
+        final temp = lines[index].last;
+        lines[index].last = [temp.first, temp.last];
+        setState((){});
+        try{
+          func();
+        }catch(e){}
+      }
+    }
+    ///обработка рисования
+    void onPanUpdate(DragUpdateDetails details, int index, setState) {
+      // Offset current = (rotation == 0 || rotation == 2) ?
+      // Offset(details.localPosition.dx, details.localPosition.dy)
+      //     : Offset(details.localPosition.dy, details.localPosition.dx);
+      Offset current = Offset(details.localPosition.dx, details.localPosition.dy);
+
+      if(mode == AnnotState.selectText || mode == AnnotState.freeForm){
+        final RenderObject? renderBoxRed = globalKeys[index].currentContext!.findRenderObject();
+        final maxHeight = renderBoxRed?.paintBounds.height;
+        final maxWidth = renderBoxRed?.paintBounds.width;
+        double x = 0;
+        double y = 0;
+
+
+        if(current.dx < maxWidth! && current.dx > 0){
+          x = current.dx;
+        }else{
+          x = current.dx > 0 ? maxWidth - 10 : 0;
+        }
+        if(current.dy < maxHeight! && current.dy > 0){
+          y = current.dy;
+        }else{
+          y = current.dy > 0 ? maxHeight - 10 : 0;
+        }
+        if(mode == AnnotState.selectText){
+          ///рисуем горизонтальную прямую
+          if(yLine == -1){
+            yLine = y;
+          }
+          lines[index].last.add(Offset(x, yLine));
+        }else{
+          ///просто рисуем кривую
+          lines[index].last.add(Offset(x, y));
+        }
+        setState((){});
+        try{
+          func();
+        }catch(e){}
+      }else if(mode == AnnotState.erase){
+        ///print('режим стиралки ${details.localPosition}');
+        erasePosition = Offset(current.dx, current.dy);
+        setState((){});
+        if(erasePositions[index].last.isNotEmpty){
+          if(erasePositions[index].last.last.dx > erasePosition.dx - (eraseRadius)
+              || erasePositions[index].last.last.dx < erasePosition.dx + (eraseRadius)
+              || erasePositions[index].last.last.dy > erasePosition.dy - (eraseRadius )
+              || erasePositions[index].last.last.dy < erasePosition.dy + (eraseRadius )
+          ){
+            erasePositions[index].last.add(erasePosition);
+            for(int i = 0; i < lines[index].length; i++){
+              for(int ii = 0; ii < lines[index][i].length; ii++){
+                bool result = belongsToCircle(x: lines[index][i][ii].dx, y: lines[index][i][ii].dy, centerX: erasePosition.dx, centerY: erasePosition.dy, radius: eraseRadius);
+                if(result){
+                  ///надо удалить из brokenLists массивы, где присутсвует удаляемая точка
+                  brokenLists.removeWhere((e) => e.contains(lines[index][i][ii]) || e.isEmpty || e.length < 2);
+                  ///print('принадлежит ли точка линии кругу ластика ${result}, ластик $erasePosition, точка ${lines[index][i][ii]}');
+                  int splitIndex = ii; // Индекс, на котором нужно разорвать массив
+                  brokenLists.add(lines[index][i].sublist(0, splitIndex));
+                  brokenLists.add(lines[index][i].sublist(splitIndex));
+                  indexToDelete.add(lines[index][i]);
+                }
+              }
+            }
+            for(int i = 0; i < indexToDelete.length; i++){
+              lines[index].removeWhere((e) => e == indexToDelete[i]);
+            }
+            for(int i = 0; i < brokenLists.length; i++){
+              if(brokenLists[i].isNotEmpty){
+                lines[index].add(brokenLists[i]);
+              }
+            }
+            brokenLists = [];
+            indexToDelete = [];
+            setState((){});
+          }
+        }else{
+          erasePositions[index].last.add(erasePosition);
+        }
+
+
+      }
+    }
+    ///обработка прокрутки страниц и установка номера активной страницы
+    void onVisibilityChanged(VisibilityInfo info) {
+      visiblyPage = int.parse(info.key.toString().replaceAll('[<\'', '').replaceAll('\'>]', ''));
+      ///print('${DateTime.now()} page $visiblyPage');
+      try{
+        func();
+      }catch(e){}
+    }
 
     ///запасной вариант загрузки андроидов через FFI
     if(Platform.isAndroid){
@@ -385,180 +526,66 @@ class LoadPdf{
     else{
       return FutureBuilder<List<String>>(
           future: withAnnot ?
-          oldPath != pathPdf ? AnnotationPDF().addAnnotation(pathPdf: pathPdf, annotations: annotations).then((value)=>loadAssetAll(pathPdf: value,))
+          oldPath != pathPdf ? AnnotationPDF().addAnnotation(pathPdf: pathPdf, annotations: annotations, bookmarks: bookmarks).then((value)=>loadAssetAll(pathPdf: value,))
               : returnOldList()
               : loadAssetAll(pathPdf: pathPdf,),
           builder: (context, snapshot) {
-            if(snapshot.hasData && lines.length != snapshot.data!.length ){
+            //print('перерисовали');
+
+            if(snapshot.hasData /*&& lines.length != snapshot.data!.length */ && oldPath != pathPdf){
               ///блокируем перерисовки
-              if(oldPath != pathPdf){
+              //if(oldPath != pathPdf){
                 lines = List.generate(snapshot.data!.length, (_) => []);
                 erasePositions = List.generate(snapshot.data!.length, (_) => []);
                 globalKeys = List.generate(snapshot.data!.length, (_) => GlobalKey());
                 oldListPaths = snapshot.data!;
                 oldPath = pathPdf;
-              }
+              //}
             }
+
             List<Widget> children = snapshot.hasData ? snapshot.data!.map((item) => StatefulBuilder(
                 builder: (BuildContext context, StateSetter setState){
                   int index = snapshot.data!.indexWhere((e) => e == item);
+                  imageCache.evict(FileImage(File(item)), includeLive: true);
+                  int _key = DateTime.now().millisecondsSinceEpoch;
                   return GestureDetector(
-                      onTap: (){
-                        ///уточняем номер текущей страницы
-                        visiblyPage = index;
-                        try{
-                          func();
-                        }catch(e){}
-                      },
-                      onPanStart: (v){
-                        if(mode == AnnotState.selectText || mode == AnnotState.freeForm){
-                          lines[index].add([]);
-                          yLine = -1;
-                          setState((){});
-                        }else if(mode == AnnotState.erase){
-                          erasePositions[index].add([]);
-                          setState((){});
-                        }
-                      },
-                      onPanEnd: (v){
-                        ///формируем ровную и без лишних точек линию выделения текста, так эстетичнее и уменьшается нагрузка
-                        if(mode == AnnotState.selectText){
-                          final temp = lines[index].last;
-                          lines[index].last = [temp.first, temp.last];
-                          setState((){});
-                          try{
-                            func();
-                          }catch(e){}
-                        }
-                        ///сформировать стертую кривую из координат ластика
-                        if(mode == AnnotState.erase){
-                          // print(lines[index].length);
-                          // for(int i = 0; i < indexToDelete.length; i++){
-                          //   lines[index].removeWhere((e) => e == indexToDelete[i]);
-                          // }
-                          // for(int i = 0; i < brokenLists.length; i++){
-                          //   if(brokenLists[i].isNotEmpty){
-                          //     lines[index].add(brokenLists[i]);
-                          //   }
-                          // }
-                          // brokenLists = [];
-                          // indexToDelete = [];
-                          // //erasePositions[index] = [];
-                          // print(lines[index].length);
-                          // setState((){});
-                        }
-                      },
-                      onPanUpdate: (details) {
-                        if(mode == AnnotState.selectText || mode == AnnotState.freeForm){
-                          final RenderObject? renderBoxRed = globalKeys[index].currentContext!.findRenderObject();
-                          final maxHeight = renderBoxRed?.paintBounds.height;
-                          final maxWidth = renderBoxRed?.paintBounds.width;
-                          double x = 0;
-                          double y = 0;
-                          if(details.localPosition.dx < maxWidth! && details.localPosition.dx > 0){
-                            x = details.localPosition.dx;
-                          }else{
-                            x = details.localPosition.dx > 0 ? maxWidth - 10 : 0;
-                          }
-                          if(details.localPosition.dy < maxHeight! && details.localPosition.dy > 0){
-                            y = details.localPosition.dy;
-                          }else{
-                            y = details.localPosition.dy > 0 ? maxHeight - 10 : 0;
-                          }
-                          if(mode == AnnotState.selectText){
-                            ///рисуем горизонтальную прямую
-                            if(yLine == -1){
-                              yLine = y;
-                            }
-                            lines[index].last.add(Offset(x, yLine));
-                          }else{
-                            ///просто рисуем кривую
-                            lines[index].last.add(Offset(x, y));
-                          }
-                          setState((){});
-                          try{
-                            func();
-                          }catch(e){}
-                        }else if(mode == AnnotState.erase){
-                          ///print('режим стиралки ${details.localPosition}');
-                          erasePosition = Offset(details.localPosition.dx, details.localPosition.dy);
-                          setState((){});
-                          if(erasePositions[index].last.isNotEmpty){
-                            if(erasePositions[index].last.last.dx > erasePosition.dx - (eraseRadius)
-                                || erasePositions[index].last.last.dx < erasePosition.dx + (eraseRadius)
-                                || erasePositions[index].last.last.dy > erasePosition.dy - (eraseRadius )
-                                || erasePositions[index].last.last.dy < erasePosition.dy + (eraseRadius )
-                            ){
-                              erasePositions[index].last.add(erasePosition);
-                              for(int i = 0; i < lines[index].length; i++){
-                                for(int ii = 0; ii < lines[index][i].length; ii++){
-                                  bool result = belongsToCircle(x: lines[index][i][ii].dx, y: lines[index][i][ii].dy, centerX: erasePosition.dx, centerY: erasePosition.dy, radius: eraseRadius);
-                                  if(result){
-                                    ///надо удалить из brokenLists массивы, где присутсвует удаляемая точка
-                                    brokenLists.removeWhere((e) => e.contains(lines[index][i][ii]) || e.isEmpty || e.length < 2);
-                                    ///print('принадлежит ли точка линии кругу ластика ${result}, ластик $erasePosition, точка ${lines[index][i][ii]}');
-                                    int splitIndex = ii; // Индекс, на котором нужно разорвать массив
-                                    brokenLists.add(lines[index][i].sublist(0, splitIndex));
-                                    brokenLists.add(lines[index][i].sublist(splitIndex));
-                                    indexToDelete.add(lines[index][i]);
-                                  }
-                                }
-                              }
-                              for(int i = 0; i < indexToDelete.length; i++){
-                                lines[index].removeWhere((e) => e == indexToDelete[i]);
-                              }
-                              for(int i = 0; i < brokenLists.length; i++){
-                                if(brokenLists[i].isNotEmpty){
-                                  lines[index].add(brokenLists[i]);
-                                }
-                              }
-                              brokenLists = [];
-                              indexToDelete = [];
-                              setState((){});
-                            }
-                          }else{
-                            erasePositions[index].last.add(erasePosition);
-                          }
-
-
-                        }
-                      },
+                      onTap: ()=>onTap(index),
+                      onPanStart: (v)=>onPanStart(v, index, setState),
+                      onPanEnd: (v)=>onPanEnd(v, index, setState),
+                      onPanUpdate: (details)=>onPanUpdate(details, index, setState),
                       child: VisibilityDetector(
                           key: ValueKey("$index"),
-                          onVisibilityChanged: (VisibilityInfo info) {
-                            visiblyPage = int.parse(info.key.toString().replaceAll('[<\'', '').replaceAll('\'>]', ''));
-                            ///print('${DateTime.now()} page $visiblyPage');
-                            try{
-                              func();
-                            }catch(e){}
-                          },
-                          child:Container(
-                              key: globalKeys[index],
-                              margin: const EdgeInsets.fromLTRB(5, 5, 5, 5),
-                              child: Stack(
-                                children: [
-                                  Image.asset(item),
-                                  ///интегрируется виджет области аннотации
-                                  ...annotations.where((element) =>
-                                  element.page == index)
-                                      .toList().map((e) => e.tapChild)
-                                      .toList(),
-                                  ...lines[index].map((e)=>FingerPaint(line:  e, mode: mode == AnnotState.erase ? AnnotState.freeForm : mode)).toList(),
-                                 /* if(mode == AnnotState.erase)...erasePositions[index].map((e)=>FingerPaint(line:  e, mode: AnnotState.erase)).toList(),*/
-                                  ///указатель ластика
-                                  if(mode == AnnotState.erase) Positioned(
-                                    top: erasePosition.dy - eraseRadius,
-                                    left: erasePosition.dx - eraseRadius,
-                                    child: Container(
-                                      width: eraseRadius * 2,
-                                      height: eraseRadius * 2,
-                                      decoration: const BoxDecoration(
-                                          color: Colors.orange,
-                                          shape: BoxShape.circle
-                                      ),
-                                    ),
-                                  ),
-                                  /*ManageAnnotButtons(
+                          onVisibilityChanged: (VisibilityInfo info)=>onVisibilityChanged(info),
+                          child:RotatedBox(
+                              quarterTurns: rotation,
+                              child: Container(
+                                  key: globalKeys[index],
+                                  margin: const EdgeInsets.fromLTRB(5, 5, 5, 5),
+                                  child: Stack(
+                                    children: [
+                                      ///поворт блока надо совместить с нарисованными линиями
+                                      Image.asset(
+                                        key: ValueKey('$_key'),
+                                        item,
+                                        width: width,
+                                        //height: height,
+                                        fit: (rotation == 0 || rotation == 2) ? BoxFit.fitWidth : BoxFit.fitHeight,),
+                                      // Image.file(File(item), width: width,
+                                      //   //height: height,
+                                      //   fit: (rotation == 0 || rotation == 2) ? BoxFit.fitWidth : BoxFit.fitHeight,),
+                                      ///использован этот виджет т.к. он не кеширует картинки
+                                      //Image.memory(File(item).readAsBytesSync(), width: width,
+                                      //height: height,
+                                      //   fit: (rotation == 0 || rotation == 2) ? BoxFit.fitWidth : BoxFit.fitHeight,),
+                                      ///интегрируется виджет области аннотации
+                                      ...annotations.where((element) =>
+                                      element.page == index)
+                                          .toList().map((e) => e.tapChild)
+                                          .toList(),
+                                      ...lines[index].map((e)=>FingerPaint(line:  e, mode: mode == AnnotState.erase ? AnnotState.freeForm : mode)).toList(),
+                                      ///указатель ластика
+                                      if(mode == AnnotState.erase) AnnotEraser(eraseRadius: eraseRadius, erasePosition: erasePosition,),
+                                      /*ManageAnnotButtons(
                                   mode: buttons[snapshot.data!.indexWhere((e) => e == item)],
                                   onDrawTap: ()=>setState(()=>buttons[index] = AnnotState.freeForm),
                                   onTextTap: ()=>setState(()=>buttons[index] = AnnotState.selectText),
@@ -593,14 +620,99 @@ class LoadPdf{
                                     }
                                   }),
                                 )*/
-                                ],
+                                    ],
+                                  )
                               )
                           )
                       )
                   );
                 }
             )).toList() : [];
+            children = snapshot.hasData ? snapshot.data!.map((item) => StatefulBuilder(
+                builder: (BuildContext context, StateSetter setState){
+                  int index = snapshot.data!.indexWhere((e) => e == item);
+                  imageCache.evict(FileImage(File(item)), includeLive: true);
+                  int _key = DateTime.now().millisecondsSinceEpoch;
+                  return GestureDetector(
+                      onTap: ()=>onTap(index),
+                      onPanStart: (v)=>onPanStart(v, index, setState),
+                      onPanEnd: (v)=>onPanEnd(v, index, setState),
+                      onPanUpdate: (details)=>onPanUpdate(details, index, setState),
+                      child: VisibilityDetector(
+                          key: ValueKey("$index"),
+                          onVisibilityChanged: (VisibilityInfo info)=>onVisibilityChanged(info),
+                          child:RotatedBox(
+                              quarterTurns: rotation,
+                              child: Container(
+                                  key: globalKeys[index],
+                                  margin: const EdgeInsets.fromLTRB(5, 5, 5, 5),
+                                  child: Stack(
+                                    children: [
+                                      ///поворт блока надо совместить с нарисованными линиями
+                                      Image.asset(
+                                        key: ValueKey(''),
+                                        item,
+                                        width: width,
+                                        //height: height,
+                                        fit: (rotation == 0 || rotation == 2) ? BoxFit.fitWidth : BoxFit.fitHeight,),
+                                      // Image.file(File(item), width: width,
+                                      //   //height: height,
+                                      //   fit: (rotation == 0 || rotation == 2) ? BoxFit.fitWidth : BoxFit.fitHeight,),
+                                      ///использован этот виджет т.к. он не кеширует картинки
+                                      //Image.memory(File(item).readAsBytesSync(), width: width,
+                                      //height: height,
+                                      //   fit: (rotation == 0 || rotation == 2) ? BoxFit.fitWidth : BoxFit.fitHeight,),
+                                      ///интегрируется виджет области аннотации
+                                      ...annotations.where((element) =>
+                                      element.page == index)
+                                          .toList().map((e) => e.tapChild)
+                                          .toList(),
+                                      ...lines[index].map((e)=>FingerPaint(line:  e, mode: mode == AnnotState.erase ? AnnotState.freeForm : mode)).toList(),
+                                      ///указатель ластика
+                                      if(mode == AnnotState.erase) AnnotEraser(eraseRadius: eraseRadius, erasePosition: erasePosition,),
+                                      /*ManageAnnotButtons(
+                                  mode: buttons[snapshot.data!.indexWhere((e) => e == item)],
+                                  onDrawTap: ()=>setState(()=>buttons[index] = AnnotState.freeForm),
+                                  onTextTap: ()=>setState(()=>buttons[index] = AnnotState.selectText),
+                                  onClearTap: ()=>setState((){
+                                    buttons[index] = AnnotState.inactive;
+                                    lines.removeAt(index);
+                                  }),
+                                  onAproveTap: ()=>addCommentDialog(context).then((value){
+                                    if(value){
+                                      AnnotationItem newAnnot = AnnotationItem(
+                                        subject: buttons[index].name,
+                                        author: 'Народ',
+                                        page: index,
+                                        annotationType: AnnotationType.inkAnnotation,
+                                        color: buttons[index] == AnnotState.freeForm ? PDF.PdfColors.blue : PDF.PdfColor.fromHex('#00ff0080'),
+                                        border: PDF.PdfBorder(PDF.PdfDocument(), buttons[index] == AnnotState.freeForm ? 4 : 12),
+                                        //interiorColor: PDF.PdfColors.blue,
+                                        pointsInk:lines[index].map((e) => AnnotationItem(page: 0, annotationType: AnnotationType.inkAnnotation).convertPointsType(e)).toList()  ,
+                                        content: commentBody,
+                                        date: DateTime.now(),
 
+                                      );
+                                      //print(AnnotationItem.fromMap({'uuid': null, 'page': 2, 'annotationType': 'inkAnnotation', 'color': '#00ff0080', 'border': null, 'author': 'Народ', 'date': 1700828655376, 'content': 'мссмти', 'subject': 'selectText', 'points': [], 'pointsInk': [[{'x': 67.0625, 'y': 258.1754150390625}, {'x': 446.60546875, 'y': 258.1754150390625}], [{'x': 66.55078125, 'y': 277.0230712890625}, {'x': 392.55078125, 'y': 277.0230712890625}], [{'x': 63.05078125, 'y': 305.4957275390625}, {'x': 376.9375, 'y': 305.4957275390625}]]}));
+                                      newAnnot.pointsInk = lines[index].map((e) => newAnnot.convertPointsType(e)).toList();
+                                      annotations.add(newAnnot);
+                                      setState((){
+                                        buttons[index] = AnnotState.inactive;
+                                        lines.removeAt(index);
+                                      });
+                                      oldPath = '';
+                                      func();
+                                    }
+                                  }),
+                                )*/
+                                    ],
+                                  )
+                              )
+                          )
+                      )
+                  );
+                }
+            )).toList() : [];
             return !snapshot.hasData
                 ? const Center( child: SizedBox(width: 60, height: 60, child: CircularProgressIndicator()))
                 : scrollDirection == Axis.horizontal ? ListView(
@@ -610,7 +722,7 @@ class LoadPdf{
                 controller: scrollController,
                 children: children
             ) : SingleChildScrollView(
-                controller: scrollController,
+                //controller: scrollController,
                 physics:  const ScrollPhysics(),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.center,
