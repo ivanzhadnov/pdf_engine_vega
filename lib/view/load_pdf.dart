@@ -18,6 +18,7 @@ import '../edit/annotation_class.dart';
 import '../edit/annotation_core.dart';
 
 import '../edit/bookmark_class.dart';
+import '../edit/line_class.dart';
 import '../util/piont_in_circle.dart';
 
 
@@ -312,7 +313,7 @@ class LoadPdf{
     return completer.future;
   }
 
-  List<List<List<Offset>>> lines = [];
+  List<List<DrawLineItem>> lines = [];
   ///установщик оси У для выделения текста
   double yLine = -1;
 
@@ -322,6 +323,7 @@ class LoadPdf{
 
   String oldPath = '';
   List<String> oldListPaths = [];
+  int _key = DateTime.now().millisecondsSinceEpoch;
 
   ///индикация активной страницы и перелистывание страниц
   int visiblyPage = 1;
@@ -343,12 +345,13 @@ class LoadPdf{
 
   ///переменные для работы с ластиком
   double eraseRadius = 10.0;
-  Offset erasePosition = Offset(-100, -100);
+  Offset erasePosition = const Offset(-100, -100);
   List<List<List<Offset>>> erasePositions = [];
   ///формируем разорванные ластиком массивы, после добавим их в основной массив
-  List<List<Offset>> brokenLists = [];
+  List<DrawLineItem> brokenLists = [];
   ///формируем список массивов, которые нужно будет удалить после обработки на пересечение с ластиком
   List indexToDelete = [];
+
 
   ///выбираем тип виджета в зависимости от платформы на которой запущено приложение
   Widget child({
@@ -386,7 +389,7 @@ class LoadPdf{
     ///обработка начала рисования
     void onPanStart(v, int index, setState){
       if(mode == AnnotState.selectText || mode == AnnotState.freeForm){
-        lines[index].add([]);
+        lines[index].add(DrawLineItem());
         yLine = -1;
         setState((){});
       }else if(mode == AnnotState.erase){
@@ -394,12 +397,12 @@ class LoadPdf{
         setState((){});
       }
     }
-    ///обработка завершения рисования
+    ///обработка завершения рисования линии и подготовка новой линии
     void onPanEnd(v, int index, setState){
       ///формируем ровную и без лишних точек линию выделения текста, так эстетичнее и уменьшается нагрузка
       if(mode == AnnotState.selectText){
-        final temp = lines[index].last;
-        lines[index].last = [temp.first, temp.last];
+        final temp = lines[index].last.line;
+        lines[index].last.line = [temp.first, temp.last];
         setState((){});
         try{
           func();
@@ -408,11 +411,7 @@ class LoadPdf{
     }
     ///обработка рисования
     void onPanUpdate(DragUpdateDetails details, int index, setState) {
-      // Offset current = (rotation == 0 || rotation == 2) ?
-      // Offset(details.localPosition.dx, details.localPosition.dy)
-      //     : Offset(details.localPosition.dy, details.localPosition.dx);
       Offset current = Offset(details.localPosition.dx, details.localPosition.dy);
-
       if(mode == AnnotState.selectText || mode == AnnotState.freeForm){
         final RenderObject? renderBoxRed = globalKeys[index].currentContext!.findRenderObject();
         final maxHeight = renderBoxRed?.paintBounds.height;
@@ -436,17 +435,16 @@ class LoadPdf{
           if(yLine == -1){
             yLine = y;
           }
-          lines[index].last.add(Offset(x, yLine));
+          lines[index].last.line.add(Offset(x, yLine));
         }else{
           ///просто рисуем кривую
-          lines[index].last.add(Offset(x, y));
+          lines[index].last.line.add(Offset(x, y));
         }
         setState((){});
         try{
           func();
         }catch(e){}
       }else if(mode == AnnotState.erase){
-        ///print('режим стиралки ${details.localPosition}');
         erasePosition = Offset(current.dx, current.dy);
         setState((){});
         if(erasePositions[index].last.isNotEmpty){
@@ -457,36 +455,38 @@ class LoadPdf{
           ){
             erasePositions[index].last.add(erasePosition);
             for(int i = 0; i < lines[index].length; i++){
-              for(int ii = 0; ii < lines[index][i].length; ii++){
-                bool result = belongsToCircle(x: lines[index][i][ii].dx, y: lines[index][i][ii].dy, centerX: erasePosition.dx, centerY: erasePosition.dy, radius: eraseRadius);
+              for(int ii = 0; ii < lines[index][i].line.length; ii++){
+                bool result = belongsToCircle(x: lines[index][i].line[ii].dx, y: lines[index][i].line[ii].dy, centerX: erasePosition.dx, centerY: erasePosition.dy, radius: eraseRadius);
                 if(result){
-                  ///надо удалить из brokenLists массивы, где присутсвует удаляемая точка
-                  brokenLists.removeWhere((e) => e.contains(lines[index][i][ii]) || e.isEmpty || e.length < 2);
-                  ///print('принадлежит ли точка линии кругу ластика ${result}, ластик $erasePosition, точка ${lines[index][i][ii]}');
-                  int splitIndex = ii; // Индекс, на котором нужно разорвать массив
-                  brokenLists.add(lines[index][i].sublist(0, splitIndex));
-                  brokenLists.add(lines[index][i].sublist(splitIndex));
+                   ///надо удалить из brokenLists массивы, где присутсвует удаляемая точка
+                   brokenLists.removeWhere((e) => e.toJson().toString().contains(lines[index][i].toJson().toString()) || e.line.isEmpty || e.line.length < 2);
+                   //print('принадлежит ли точка линии кругу ластика ${result}, ластик $erasePosition, точка ${lines[index][i].line[ii]} index ${ii}');
+                   int splitIndex = ii; // Индекс, на котором нужно разорвать массив
+                    final tmpFirst = DrawLineItem()..color = lines[index][i].color..thickness=lines[index][i].thickness..undoLine=lines[index][i].undoLine..undoColor=lines[index][i].undoColor..undoThickness=lines[index][i].undoThickness;
+                        tmpFirst.line = lines[index][i].line.map((e) => e).toList().sublist(0, splitIndex);
+                   final tmpSecond = DrawLineItem()..color = lines[index][i].color..thickness=lines[index][i].thickness..undoLine=lines[index][i].undoLine..undoColor=lines[index][i].undoColor..undoThickness=lines[index][i].undoThickness;
+                              tmpSecond.line = lines[index][i].line.map((e) => e).toList().sublist(splitIndex);
+                  brokenLists.add(tmpFirst);
+                  brokenLists.add(tmpSecond);
                   indexToDelete.add(lines[index][i]);
                 }
               }
             }
+
             for(int i = 0; i < indexToDelete.length; i++){
               lines[index].removeWhere((e) => e == indexToDelete[i]);
             }
+
             for(int i = 0; i < brokenLists.length; i++){
-              if(brokenLists[i].isNotEmpty){
-                lines[index].add(brokenLists[i]);
-              }
+              lines[index].add(brokenLists[i]);
             }
+
             brokenLists = [];
             indexToDelete = [];
-            setState((){});
           }
         }else{
           erasePositions[index].last.add(erasePosition);
         }
-
-
       }
     }
     ///обработка прокрутки страниц и установка номера активной страницы
@@ -534,20 +534,18 @@ class LoadPdf{
 
             if(snapshot.hasData /*&& lines.length != snapshot.data!.length */ && oldPath != pathPdf){
               ///блокируем перерисовки
-              //if(oldPath != pathPdf){
-                lines = List.generate(snapshot.data!.length, (_) => []);
+                lines = List.generate(snapshot.data!.length, (_) => [DrawLineItem()]);
                 erasePositions = List.generate(snapshot.data!.length, (_) => []);
                 globalKeys = List.generate(snapshot.data!.length, (_) => GlobalKey());
                 oldListPaths = snapshot.data!;
                 oldPath = pathPdf;
-              //}
-            }
 
+            }
             List<Widget> children = snapshot.hasData ? snapshot.data!.map((item) => StatefulBuilder(
                 builder: (BuildContext context, StateSetter setState){
+                  ///номер страницы
                   int index = snapshot.data!.indexWhere((e) => e == item);
                   imageCache.evict(FileImage(File(item)), includeLive: true);
-                  int _key = DateTime.now().millisecondsSinceEpoch;
                   return GestureDetector(
                       onTap: ()=>onTap(index),
                       onPanStart: (v)=>onPanStart(v, index, setState),
@@ -565,7 +563,8 @@ class LoadPdf{
                                     children: [
                                       ///поворт блока надо совместить с нарисованными линиями
                                       Image.asset(
-                                        //key: ValueKey('$_key'),
+                                        key: ValueKey('$_key'),
+                                        semanticLabel: '$_key',
                                         item,
                                         width: width,
                                         //height: height,
@@ -577,12 +576,13 @@ class LoadPdf{
                                       //Image.memory(File(item).readAsBytesSync(), width: width,
                                       //height: height,
                                       //   fit: (rotation == 0 || rotation == 2) ? BoxFit.fitWidth : BoxFit.fitHeight,),
+                                      ///Text('$_key', style: TextStyle(color: Colors.black),),
                                       ///интегрируется виджет области аннотации
                                       ...annotations.where((element) =>
                                       element.page == index)
                                           .toList().map((e) => e.tapChild)
                                           .toList(),
-                                      ...lines[index].map((e)=>FingerPaint(line:  e, mode: mode == AnnotState.erase ? AnnotState.freeForm : mode)).toList(),
+                                      ...lines[index].map((e)=>FingerPaint(line:  e.line, mode: mode == AnnotState.erase ? AnnotState.freeForm : mode, color: e.color, thickness: e.thickness, )).toList(),
                                       ///указатель ластика
                                       if(mode == AnnotState.erase) AnnotEraser(eraseRadius: eraseRadius, erasePosition: erasePosition,),
                                       /*ManageAnnotButtons(

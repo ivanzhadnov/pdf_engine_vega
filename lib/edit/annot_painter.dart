@@ -10,12 +10,18 @@ class FingerPaint extends StatefulWidget {
   FingerPaint({
     super.key,
     required this.line,
-    required this.mode
+    required this.mode,
+    required this.color,
+    required this.thickness
   });
   ///массив Offset для формирования кривой
   List<Offset> line = [];
   ///какой режим выбран, такое оформление и задавать линии
   AnnotState mode;
+  ///цвет линии рисования
+  Color color;
+  ///толщина линии рисования
+  double thickness;
 
   @override
   FingerPaintState createState() => FingerPaintState();
@@ -27,10 +33,10 @@ class FingerPaintState extends State<FingerPaint> {
 
   @override
   Widget build(BuildContext context) {
-    //print("array points $line");
+    //print("array points ${widget.color.value}");
     return CustomPaint(
         //size: Size(300, 300),
-        painter: MyPainter(line: widget.line, mode: widget.mode),
+        painter: MyPainter(line: widget.line, mode: widget.mode, color: widget.color, thickness: widget.thickness),
     );
   }
 }
@@ -38,10 +44,14 @@ class FingerPaintState extends State<FingerPaint> {
 class MyPainter extends CustomPainter {
   MyPainter({
     required this.line,
-    required this.mode
+    required this.mode,
+    required this.color,
+    required this.thickness
 });
   List<Offset> line = [];
   AnnotState mode;
+  Color color;
+  double thickness;
 
   List<Color> colors = [
     Colors.red,
@@ -58,8 +68,8 @@ class MyPainter extends CustomPainter {
     final points = line;
     final paint = Paint()
       //..color = colors[_random.nextInt(colors.length)]
-      ..color = mode == AnnotState.freeForm ? colors[3] : mode == AnnotState.erase ? Colors.white : colors[4].withOpacity(0.4)
-      ..strokeWidth = mode == AnnotState.freeForm ? 4 : 12
+      ..color = mode == AnnotState.freeForm ? color : mode == AnnotState.erase ? Colors.white : colors[4].withOpacity(0.4)
+      ..strokeWidth = mode == AnnotState.freeForm ? thickness : 12
       ..strokeCap = mode == AnnotState.freeForm ? StrokeCap.round : StrokeCap.square;
     canvas.drawPoints(pointMode, points, paint);
   }
