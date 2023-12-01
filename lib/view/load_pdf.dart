@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer';
 import 'dart:io';
 
 import 'package:flutter/cupertino.dart';
@@ -10,6 +11,7 @@ import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:pdfx/pdfx.dart';
+import 'package:syncfusion_flutter_pdf/pdf.dart' as sf;
 import 'package:visibility_detector/visibility_detector.dart';
 
 import '../edit/annot_buttons.dart';
@@ -20,6 +22,7 @@ import '../edit/annotation_core.dart';
 import '../edit/bookmark_class.dart';
 import '../edit/line_class.dart';
 import '../util/piont_in_circle.dart';
+import 'extract_text/syficion_text_extract.dart';
 
 
 
@@ -30,6 +33,7 @@ class LoadPdf{
 
   LoadPdf(){
     setPdfium();
+
   }
 
   PdfiumWrap? pdfium;
@@ -92,6 +96,29 @@ class LoadPdf{
     }catch(e){}
 
     return count;
+  }
+
+  String pathDoument = '';
+  Future<String> get documentText => getText(pathPdf:pathDoument);
+  ///получить текст из тела документа
+  Future<String>getText({required String pathPdf,})async{
+    //String text = await PDFTextExtractionWrapping().extractText(pathPdf);
+    String text = await syficionGetText(pathPdf:pathPdf);
+    return text;
+  }
+
+  ///текст строками TextLines
+  Future<List<sf.TextLine>>getTextLines({required String pathPdf, required int page})async{
+    //String text = await PDFTextExtractionWrapping().extractText(pathPdf);
+    List<sf.TextLine> text = []; await syficionGetTextLines(pathPdf:pathPdf, startPage: null, endPage: null).then((value) => text = value);
+    //print(text.last.text);
+    //print(text);
+    return text;
+  }
+  
+  ///поиск текста в документе
+  searchText({required String pathPdf, required int page}){
+    syficionSearchText(pathPdf: pathPdf, searchString: 'Less').then((value) => print(value.map((e) => e.bounds).toList()));
   }
 
   ///получить байты
@@ -336,11 +363,13 @@ class LoadPdf{
 
   ///обрабатываем нажатие по скролл контроллеру
   changePage(int page, setState){
-    final RenderObject? renderBoxRed = globalKeys[page].currentContext!.findRenderObject();
-    final height = renderBoxRed?.semanticBounds.height;
-    final width = renderBoxRed?.paintBounds.width;
-    scrollController.jumpTo(height! * page - 30);
-    setState();
+    if(oldListPaths.length > 1){
+      final RenderObject? renderBoxRed = globalKeys[page].currentContext!.findRenderObject();
+      final height = renderBoxRed?.semanticBounds.height;
+      final width = renderBoxRed?.paintBounds.width;
+      scrollController.jumpTo(height! * page - 30);
+      setState();
+    }
   }
 
   ///переменные для работы с ластиком
@@ -350,7 +379,7 @@ class LoadPdf{
   ///формируем разорванные ластиком массивы, после добавим их в основной массив
   List<DrawLineItem> brokenLists = [];
   ///формируем список массивов, которые нужно будет удалить после обработки на пересечение с ластиком
-  List indexToDelete = [];
+  List<DrawLineItem> indexToDelete = [];
 
 
   ///выбираем тип виджета в зависимости от платформы на которой запущено приложение
@@ -375,6 +404,7 @@ class LoadPdf{
     double? width,
     double? height,
   }){
+    pathDoument = pathPdf;
     imageCache.clear();
     imageCache.clearLiveImages();
     bool withAnnot = annotations != null || annotations!.isNotEmpty;
@@ -407,6 +437,8 @@ class LoadPdf{
         try{
           func();
         }catch(e){}
+      }else if(mode == AnnotState.erase){
+        erasePositions[index] = [];
       }
     }
     ///обработка рисования
@@ -448,42 +480,69 @@ class LoadPdf{
         erasePosition = Offset(current.dx, current.dy);
         setState((){});
         if(erasePositions[index].last.isNotEmpty){
-          if(erasePositions[index].last.last.dx > erasePosition.dx - (eraseRadius)
-              || erasePositions[index].last.last.dx < erasePosition.dx + (eraseRadius)
-              || erasePositions[index].last.last.dy > erasePosition.dy - (eraseRadius )
-              || erasePositions[index].last.last.dy < erasePosition.dy + (eraseRadius )
-          ){
-            erasePositions[index].last.add(erasePosition);
+          erasePositions[index].last.add(erasePosition);
+          // if(erasePositions[index].last.last.dx > erasePosition.dx - (eraseRadius)
+          //     || erasePositions[index].last.last.dx < erasePosition.dx + (eraseRadius)
+          //     || erasePositions[index].last.last.dy > erasePosition.dy - (eraseRadius )
+          //     || erasePositions[index].last.last.dy < erasePosition.dy + (eraseRadius )
+          // ){
+
+//print(lines[index].length);
             for(int i = 0; i < lines[index].length; i++){
+              //print('in cycle #1');
               for(int ii = 0; ii < lines[index][i].line.length; ii++){
+                //print('in cycle #2');
                 bool result = belongsToCircle(x: lines[index][i].line[ii].dx, y: lines[index][i].line[ii].dy, centerX: erasePosition.dx, centerY: erasePosition.dy, radius: eraseRadius);
                 if(result){
-                   ///надо удалить из brokenLists массивы, где присутсвует удаляемая точка
-                   brokenLists.removeWhere((e) => e.toJson().toString().contains(lines[index][i].toJson().toString()) || e.line.isEmpty || e.line.length < 2);
-                   //print('принадлежит ли точка линии кругу ластика ${result}, ластик $erasePosition, точка ${lines[index][i].line[ii]} index ${ii}');
-                   int splitIndex = ii; // Индекс, на котором нужно разорвать массив
-                    final tmpFirst = DrawLineItem()..color = lines[index][i].color..thickness=lines[index][i].thickness..undoLine=lines[index][i].undoLine..undoColor=lines[index][i].undoColor..undoThickness=lines[index][i].undoThickness;
-                        tmpFirst.line = lines[index][i].line.map((e) => e).toList().sublist(0, splitIndex);
-                   final tmpSecond = DrawLineItem()..color = lines[index][i].color..thickness=lines[index][i].thickness..undoLine=lines[index][i].undoLine..undoColor=lines[index][i].undoColor..undoThickness=lines[index][i].undoThickness;
-                              tmpSecond.line = lines[index][i].line.map((e) => e).toList().sublist(splitIndex);
-                  brokenLists.add(tmpFirst);
-                  brokenLists.add(tmpSecond);
-                  indexToDelete.add(lines[index][i]);
+                  ///надо удалить из brokenLists массивы, где присутсвует удаляемая точка
+                  brokenLists.removeWhere((e) =>
+                  ///удаляем списки где есть полное совпадение с родительским списком
+                  e.toJson().toString().contains(lines[index][i].toJson().toString())
+                      ///удаляем пустые списки
+                      || e.line.isEmpty
+                      ///удаляем короткие списки
+                      || e.line.length < 2
+                    ///удаляем списки где есть есть попадание в круг стерки
+                    //|| brokenLists.map((e) => e.line.map((l) => belongsToCircle(x: l.dx, y: l.dy, centerX: erasePosition.dx, centerY: erasePosition.dy, radius: eraseRadius) == true).toList()).toList().isNotEmpty
+                  );
+                  //print('принадлежит ли точка линии кругу ластика ${result}, ластик $erasePosition, точка ${lines[index][i].line[ii]} index ${ii}');
+                  int splitIndex = ii; // Индекс, на котором нужно разорвать массив
+                  final tmpFirst = DrawLineItem()..color = lines[index][i].color..thickness=lines[index][i].thickness..undoLine=lines[index][i].undoLine..undoColor=lines[index][i].undoColor..undoThickness=lines[index][i].undoThickness;
+                  tmpFirst.line = lines[index][i].line.map((e) => e).toList().sublist(0, splitIndex);
+                  final tmpSecond = DrawLineItem()..color = lines[index][i].color..thickness=lines[index][i].thickness..undoLine=lines[index][i].undoLine..undoColor=lines[index][i].undoColor..undoThickness=lines[index][i].undoThickness;
+                  tmpSecond.line = lines[index][i].line.map((e) => e).toList().sublist(splitIndex);
+                  if(brokenLists.length < 100){
+                    brokenLists.add(tmpFirst);
+                    brokenLists.add(tmpSecond);
+                    indexToDelete.add(lines[index][i]);
+                  }else{
+
+                  }
+
+
                 }
               }
-            }
-
-            for(int i = 0; i < indexToDelete.length; i++){
-              lines[index].removeWhere((e) => e == indexToDelete[i]);
-            }
-
-            for(int i = 0; i < brokenLists.length; i++){
-              lines[index].add(brokenLists[i]);
-            }
-
-            brokenLists = [];
-            indexToDelete = [];
           }
+
+
+          for(int i = 0; i < indexToDelete.length; i++){
+            //print('in cycle #3');
+            lines[index].removeWhere((e) => e.toJson().toString() == indexToDelete[i].toJson().toString());
+          }
+          brokenLists..removeWhere((e) => e.line.isEmpty)..removeWhere((el) => el.line.length < 4);
+          brokenLists.unique((x) => x.toJson().toString());
+          for(int i = 0; i < brokenLists.length; i++){
+            //print('in cycle #4');
+            lines[index].add(brokenLists[i]);
+          }
+          lines[index]..removeWhere((e) => e.line.isEmpty)..removeWhere((el) => el.line.length < 4);
+          lines[index].unique((x) => x.toJson().toString());
+          //log('${lines[index].map((e) => e.line)}');
+          //log('${lines[index].map((e) => e.line.length)}');
+          brokenLists = [];
+          indexToDelete = [];
+
+          //}
         }else{
           erasePositions[index].last.add(erasePosition);
         }
@@ -583,6 +642,7 @@ class LoadPdf{
                                           .toList().map((e) => e.tapChild)
                                           .toList(),
                                       ...lines[index].map((e)=>FingerPaint(line:  e.line, mode: mode == AnnotState.erase ? AnnotState.freeForm : mode, color: e.color, thickness: e.thickness, )).toList(),
+                                      //...erasePositions[index].map((e)=>FingerPaint(line:  e, mode: AnnotState.erase, color: Colors.white, thickness: eraseRadius * 2, )).toList(),
                                       ///указатель ластика
                                       if(mode == AnnotState.erase) AnnotEraser(eraseRadius: eraseRadius, erasePosition: erasePosition,),
                                       /*ManageAnnotButtons(
@@ -637,7 +697,7 @@ class LoadPdf{
                 controller: scrollController,
                 children: children
             ) : SingleChildScrollView(
-                //controller: scrollController,
+                controller: scrollController,
                 physics:  const ScrollPhysics(),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.center,
@@ -773,3 +833,11 @@ class LoadPdf{
 }
 
 
+extension Unique<E, Id> on List<E> {
+  List<E> unique([Id Function(E element)? id, bool inplace = true]) {
+    final ids = Set();
+    var list = inplace ? this : List<E>.from(this);
+    list.retainWhere((x) => ids.add(id != null ? id(x) : x as Id));
+    return list;
+  }
+}
