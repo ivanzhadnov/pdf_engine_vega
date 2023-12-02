@@ -18,7 +18,13 @@ dependencies:
   syncfusion_flutter_pdf: ^23.2.6
   #https://pub.dev/packages/pdf_text_extraction нужны библиотеки под макось андроид и иос
   pdf: ^3.10.4
-  pdfx: ^2.4.0
+  #pdfx: ^2.4.0
+  pdfx:
+    git:
+      url: https://github.com/ScerIO/packages.flutter
+      ref: 8b105a7dfc6b90220c1d79fcb805fb764cab00c5
+      path: packages/pdfx
+
 
 dev_dependencies:
   flutter_test:
