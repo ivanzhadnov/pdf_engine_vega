@@ -20,7 +20,7 @@ class AnnotationPDF{
   ///добавить имеющуюся аннотацию в документ
   Future<String>addAnnotation({required String pathPdf, List<AnnotationItem>? annotations = const[],  List<BookMarkPDF>? bookmarks = const []})async{
 
-    print('перегенерили ${bookmarks!.length}');
+    print('перегенерили ${bookmarks!.length} $pathPdf');
     imageCache.clear();
     imageCache.clearLiveImages();
     ///извлекаем страницу ПДФ в картинку
@@ -70,6 +70,7 @@ class AnnotationPDF{
     }
     await file.writeAsBytes(await pdf.save());
     ///показываем пользователю
+    print(file.path);
     return file.path;
   }
 

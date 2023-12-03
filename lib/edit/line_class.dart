@@ -9,6 +9,7 @@ class DrawLineItem{
   List<List<Offset>> undoLine = [];
   Color undoColor = Colors.blue;
   double undoThickness = 4.0;
+  String text = '';
 
   toJson(){
     return {

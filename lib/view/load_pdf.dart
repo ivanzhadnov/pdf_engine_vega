@@ -99,26 +99,28 @@ class LoadPdf{
   }
 
   String pathDoument = '';
-  Future<String> get documentText => getText(pathPdf:pathDoument);
+  ///Future<String> get documentText => getText(pathPdf:pathDoument);
   ///получить текст из тела документа
-  Future<String>getText({required String pathPdf,})async{
-    //String text = await PDFTextExtractionWrapping().extractText(pathPdf);
-    String text = await syficionGetText(pathPdf:pathPdf);
+  Future<String>getText({int? page = null})async{
+    String text = await syficionGetText(pathPdf:pathDoument, startPage: page, endPage: page);
     return text;
   }
 
+  //Future<List<sf.TextLine>> get textLines => getTextLines(page: null);
+  List<sf.TextLine> textLines = [];
   ///текст строками TextLines
-  Future<List<sf.TextLine>>getTextLines({required String pathPdf, required int page})async{
-    //String text = await PDFTextExtractionWrapping().extractText(pathPdf);
-    List<sf.TextLine> text = []; await syficionGetTextLines(pathPdf:pathPdf, startPage: null, endPage: null).then((value) => text = value);
-    //print(text.last.text);
+  Future<List<sf.TextLine>>getTextLines({ required int? page})async{
+    List<sf.TextLine> text = [];
+    await syficionGetTextLines(pathPdf:pathDoument, startPage: page, endPage: page).then((value) => text = value);
+    //print(text.last.bounds.);
     //print(text);
     return text;
   }
-  
+
+  List<sf.MatchedItem> findedFragments = [];
   ///поиск текста в документе
-  searchText({required String pathPdf, required int page}){
-    syficionSearchText(pathPdf: pathPdf, searchString: 'Less').then((value) => print(value.map((e) => e.bounds).toList()));
+   searchText({required int? page, required String searchText})async {
+     syficionSearchText(pathPdf: pathDoument, searchString: searchText, startPage: page).then((value) => findedFragments = value);
   }
 
   ///получить байты
@@ -287,7 +289,6 @@ class LoadPdf{
   ///загрузка файла PDF из ассета для всех ОС кроме ИОС и Web и помещение в файлы JPG по страницам
   Future<List<String>> loadAssetAll({required String pathPdf}) async {
     List<String> filesPaths = [];
-    /// await  setPdfium().then((value)async{
     final directory = await getApplicationDocumentsDirectory();
     late Uint8List bytes;
     ///загрузка из ассета, но нам может понадобиться загрузка из локального хранилища
@@ -302,8 +303,6 @@ class LoadPdf{
     ///циклом собрать массив отрендеренных страниц для отображения
 
     for(int i = 0; i < countPages; i++){
-      //String fileName = DateTime.now().millisecondsSinceEpoch.toString();
-
       String fileName = 'render';
       imageCache.evict(FileImage(File('${directory.path}${Platform.pathSeparator}$fileName$i.jpg')), includeLive: true);
       imageCache.clear();
@@ -330,7 +329,6 @@ class LoadPdf{
       File file = File("${dir.path}${Platform.pathSeparator}$filename");
       var data = await rootBundle.load(asset);
       var bytes = data.buffer.asUint8List();
-      print('длина фалйа в байтах 2 ${bytes.length}');
       await file.writeAsBytes(bytes, flush: true);
       completer.complete(file);
     } catch (e) {
@@ -350,7 +348,7 @@ class LoadPdf{
 
   String oldPath = '';
   List<String> oldListPaths = [];
-  int _key = DateTime.now().millisecondsSinceEpoch;
+
 
   ///индикация активной страницы и перелистывание страниц
   int visiblyPage = 1;
@@ -409,7 +407,7 @@ class LoadPdf{
     imageCache.clearLiveImages();
     bool withAnnot = annotations != null || annotations!.isNotEmpty;
     ///обработка нажатия на страницу
-    void onTap(int index){
+    void onTap(int index)async{
       ///уточняем номер текущей страницы
       visiblyPage = index;
       try{
@@ -431,12 +429,14 @@ class LoadPdf{
     void onPanEnd(v, int index, setState){
       ///формируем ровную и без лишних точек линию выделения текста, так эстетичнее и уменьшается нагрузка
       if(mode == AnnotState.selectText){
-        final temp = lines[index].last.line;
-        lines[index].last.line = [temp.first, temp.last];
-        setState((){});
-        try{
-          func();
-        }catch(e){}
+        if(lines[index].last.line.isNotEmpty){
+          final temp = lines[index].last.line;
+          lines[index].last.line = [temp.first, temp.last];
+          setState((){});
+          try{
+            func();
+          }catch(e){}
+        }
       }else if(mode == AnnotState.erase){
         erasePositions[index] = [];
       }
@@ -463,11 +463,30 @@ class LoadPdf{
           y = current.dy > 0 ? maxHeight - 10 : 0;
         }
         if(mode == AnnotState.selectText){
-          ///рисуем горизонтальную прямую
-          if(yLine == -1){
-            yLine = y;
+
+          if(textLines.isNotEmpty){
+            final calculated = textLines.where((el) => (current.dx.clamp(el.bounds.left - 5, el.bounds.right + 5) == current.dx && current.dy.clamp(el.bounds.top - 5, el.bounds.bottom + 5) == current.dy)).toList();
+            ///print(calculated.map((e) => e.text).toList());
+            ///рисуем прямую при условии, что есть текст
+            if(calculated.isNotEmpty){
+              if(yLine == -1){
+                yLine = y;
+              }
+              lines[index].last.line.add(Offset(x, yLine));
+              lines[index].last.text = calculated.map((e) => e.text).last;
+              print(lines[index].last.text);
+            }
+
           }
-          lines[index].last.line.add(Offset(x, yLine));
+
+          ///рисуем горизонтальную прямую маркером
+          // if(yLine == -1){
+          //   yLine = y;
+          // }
+          // lines[index].last.line.add(Offset(x, yLine));
+
+
+
         }else{
           ///просто рисуем кривую
           lines[index].last.line.add(Offset(x, y));
@@ -481,17 +500,8 @@ class LoadPdf{
         setState((){});
         if(erasePositions[index].last.isNotEmpty){
           erasePositions[index].last.add(erasePosition);
-          // if(erasePositions[index].last.last.dx > erasePosition.dx - (eraseRadius)
-          //     || erasePositions[index].last.last.dx < erasePosition.dx + (eraseRadius)
-          //     || erasePositions[index].last.last.dy > erasePosition.dy - (eraseRadius )
-          //     || erasePositions[index].last.last.dy < erasePosition.dy + (eraseRadius )
-          // ){
-
-//print(lines[index].length);
             for(int i = 0; i < lines[index].length; i++){
-              //print('in cycle #1');
               for(int ii = 0; ii < lines[index][i].line.length; ii++){
-                //print('in cycle #2');
                 bool result = belongsToCircle(x: lines[index][i].line[ii].dx, y: lines[index][i].line[ii].dy, centerX: erasePosition.dx, centerY: erasePosition.dy, radius: eraseRadius);
                 if(result){
                   ///надо удалить из brokenLists массивы, где присутсвует удаляемая точка
@@ -518,27 +528,21 @@ class LoadPdf{
                   }else{
 
                   }
-
-
                 }
               }
           }
 
 
           for(int i = 0; i < indexToDelete.length; i++){
-            //print('in cycle #3');
             lines[index].removeWhere((e) => e.toJson().toString() == indexToDelete[i].toJson().toString());
           }
           brokenLists..removeWhere((e) => e.line.isEmpty)..removeWhere((el) => el.line.length < 4);
           brokenLists.unique((x) => x.toJson().toString());
           for(int i = 0; i < brokenLists.length; i++){
-            //print('in cycle #4');
             lines[index].add(brokenLists[i]);
           }
           lines[index]..removeWhere((e) => e.line.isEmpty)..removeWhere((el) => el.line.length < 4);
           lines[index].unique((x) => x.toJson().toString());
-          //log('${lines[index].map((e) => e.line)}');
-          //log('${lines[index].map((e) => e.line.length)}');
           brokenLists = [];
           indexToDelete = [];
 
@@ -589,16 +593,13 @@ class LoadPdf{
               : returnOldList()
               : loadAssetAll(pathPdf: pathPdf,),
           builder: (context, snapshot) {
-            //print('перерисовали');
-
-            if(snapshot.hasData /*&& lines.length != snapshot.data!.length */ && oldPath != pathPdf){
+            if(snapshot.hasData && oldPath != pathPdf){
               ///блокируем перерисовки
                 lines = List.generate(snapshot.data!.length, (_) => [DrawLineItem()]);
                 erasePositions = List.generate(snapshot.data!.length, (_) => []);
                 globalKeys = List.generate(snapshot.data!.length, (_) => GlobalKey());
                 oldListPaths = snapshot.data!;
                 oldPath = pathPdf;
-
             }
             List<Widget> children = snapshot.hasData ? snapshot.data!.map((item) => StatefulBuilder(
                 builder: (BuildContext context, StateSetter setState){
@@ -622,12 +623,20 @@ class LoadPdf{
                                     children: [
                                       ///поворт блока надо совместить с нарисованными линиями
                                       Image.asset(
-                                        key: ValueKey('$_key'),
-                                        semanticLabel: '$_key',
                                         item,
                                         width: width,
                                         //height: height,
                                         fit: (rotation == 0 || rotation == 2) ? BoxFit.fitWidth : BoxFit.fitHeight,),
+                                      ///рисуем выделения найденого текста
+                                      ...findedFragments.where((el) => el.pageIndex == index).toList().map((e) => Positioned(
+                                          top:e.bounds.top + 5,
+                                          left: e.bounds.left - 10,
+                                          child: Container(
+                                            color: Colors.yellow.withOpacity(0.5),
+                                            width: e.bounds.width,
+                                            height: e.bounds.height,
+
+                                      ))).toList(),
                                       // Image.file(File(item), width: width,
                                       //   //height: height,
                                       //   fit: (rotation == 0 || rotation == 2) ? BoxFit.fitWidth : BoxFit.fitHeight,),
