@@ -30,18 +30,27 @@ class AnnotationPDF{
     final _load = LoadPdf();
     List<Uint8List> bytes = await _load.loadRenderingImagesPaths(pathPdf: pathPdf);
     ///добавляем эту картинку в новый ПДФ
-    final pdf = pw.Document();
+    final pdf = pw.Document(
+      compress: false,
+    );
     for(int i = 0; i < bytes.length; i++){
-      final image = pw.MemoryImage(bytes[i]);
+      final image = pw.MemoryImage(bytes[i], dpi: 300);
+      //final provider = pw.ImageImage(image);
+      //final image = pw.RawImage(bytes: bytes[i], width: 1000, height: (1000 / 3 * 4).toInt(),);
       pdf.addPage(
           pw.Page(
             margin: const pw.EdgeInsets.fromLTRB(0,0,0,0),
-              pageFormat: PdfPageFormat.a4,
+              //pageFormat: PdfPageFormat.a4,
+              // pageFormat: const PdfPageFormat(
+              //    1000,   1000 / 3 * 4,
+              //   marginTop: 0.0, marginBottom: 0.0, marginLeft: 0.0, marginRight: 0.0
+              // ),
               build: (pw.Context context) {
                 return pw.Stack(
                   children: [
+
                     pw.Center(
-                      child: pw.Image(image),
+                      child: pw.Image(image,),
                     ),
                     ///накладываем аннотацию
                     //...annotations!.where((el) => el.page == i).toList().map((e) => e.child).toList(),

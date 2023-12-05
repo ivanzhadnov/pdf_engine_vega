@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:developer';
+import 'dart:ffi';
 import 'dart:io';
 
 import 'package:flutter/cupertino.dart';
@@ -210,7 +211,7 @@ class LoadPdf{
       imageCache.clearLiveImages();
       document.loadPage(i)
       //.renderPageAsBytes(300, 400, /*backgroundColor:  int.parse(backgroundColor, radix: 16),*/ flags: 1);
-          .savePageAsJpg('${directory.path}${Platform.pathSeparator}$fileName$i.jpg', qualityJpg: 80, flags: 1)
+          .savePageAsJpg('${directory.path}${Platform.pathSeparator}$fileName$i.jpg', qualityJpg: 100, flags: 1, width: _width, height: _height,)
           .closePage();
       result.add(
           !Platform.isAndroid && !Platform.isWindows ? Image.asset('${directory.path}${Platform.pathSeparator}$fileName$i.jpg')
@@ -273,7 +274,7 @@ class LoadPdf{
         imageCache.clear();
         imageCache.clearLiveImages();
         document.loadPage(i)
-            .savePageAsJpg('${directory.path}${Platform.pathSeparator}render$i.jpg', qualityJpg: 100, flags: 1)
+            .savePageAsJpg('${directory.path}${Platform.pathSeparator}render$i.jpg', qualityJpg: 100, flags: 1, width: _width, height: _height,)
             .closePage();
         bytes = (await File('${directory.path}${Platform.pathSeparator}render$i.jpg').readAsBytes());
         //filesBytes.add(document.loadPage(i).renderPageAsBytes(300, 400, flags: 0, /*backgroundColor:  int.parse(backgroundColor, radix: 16)*/ ));
@@ -288,14 +289,17 @@ class LoadPdf{
 
   ///загрузка файла PDF из ассета для всех ОС кроме ИОС и Web и помещение в файлы JPG по страницам
   Future<List<String>> loadAssetAll({required String pathPdf}) async {
+String _path = pathPdf;
+   _path =  await syficionSearchTextAddAnnotation(pathPdf: pathPdf);
+
     List<String> filesPaths = [];
     final directory = await getApplicationDocumentsDirectory();
     late Uint8List bytes;
     ///загрузка из ассета, но нам может понадобиться загрузка из локального хранилища
     try{
-      bytes = (await rootBundle.load(pathPdf)).buffer.asUint8List();
+      bytes = (await rootBundle.load(_path)).buffer.asUint8List();
     }catch(e){
-      bytes = (await File(pathPdf).readAsBytes());
+      bytes = (await File(_path).readAsBytes());
     }
     ///получить количество страниц
     final document = pdfium!.loadDocumentFromBytes(bytes);
@@ -308,8 +312,9 @@ class LoadPdf{
       imageCache.clear();
       imageCache.clearLiveImages();
       document.loadPage(i)
+      //.savePageAsPng('${directory.path}${Platform.pathSeparator}$fileName$i.png', pngLevel: 6, flags: 1, width: 2000, height: (2000 / 3 * 4).toInt(),scale: 3)
       ///в частности перечислить флаг для отображения аннотаций
-          .savePageAsJpg('${directory.path}${Platform.pathSeparator}$fileName$i.jpg', qualityJpg: 80, flags: 1)
+          .savePageAsJpg('${directory.path}${Platform.pathSeparator}$fileName$i.jpg', qualityJpg: 100, flags: 1, width: _width, height: _height,)
           .closePage();
       filesPaths.add('${directory.path}${Platform.pathSeparator}$fileName$i.jpg');
     }
@@ -379,6 +384,8 @@ class LoadPdf{
   ///формируем список массивов, которые нужно будет удалить после обработки на пересечение с ластиком
   List<DrawLineItem> indexToDelete = [];
 
+  ///переменные для работы с качеством изображения
+  int? _width; int? _height;
 
   ///выбираем тип виджета в зависимости от платформы на которой запущено приложение
   Widget child({
@@ -400,6 +407,9 @@ class LoadPdf{
     double? width,
     double? height,
   }){
+    _width = 2000;
+    _height = (_width! / 3 * 4).toInt();
+
     ///print('количество аннотаций ${annotations!.length}');
     pathDoument = pathPdf;
     imageCache.clear();
@@ -618,10 +628,13 @@ class LoadPdf{
     }
     else{
       return FutureBuilder<List<String>>(
-          future: withAnnot ?
-          oldPath != pathPdf ? AnnotationPDF().addAnnotation(pathPdf: pathPdf, annotations: annotations, bookmarks: bookmarks).then((value)=>loadAssetAll(pathPdf: value,))
-              : returnOldList()
-              : loadAssetAll(pathPdf: pathPdf,),
+          future: //withAnnot ?
+           oldPath == pathPdf ?
+          // AnnotationPDF().addAnnotation(pathPdf: pathPdf, annotations: annotations, bookmarks: bookmarks).then((value)=>loadAssetAll(pathPdf: value,))
+            //   :
+              returnOldList()
+               :
+          loadAssetAll(pathPdf: pathPdf,),
           builder: (context, snapshot) {
             if(snapshot.hasData && oldPath != pathPdf){
               ///блокируем перерисовки
@@ -647,6 +660,7 @@ class LoadPdf{
                           child:RotatedBox(
                               quarterTurns: rotation,
                               child: Container(
+                                color: Colors.red.withOpacity(0.5),
                                   key: globalKeys[index],
                                   margin: const EdgeInsets.fromLTRB(5, 5, 5, 5),
                                   child: Stack(
@@ -654,9 +668,10 @@ class LoadPdf{
                                       ///поворт блока надо совместить с нарисованными линиями
                                       Image.asset(
                                         item,
-                                        width: width,
+                                        //width: width,
                                         //height: height,
-                                        fit: (rotation == 0 || rotation == 2) ? BoxFit.fitWidth : BoxFit.fitHeight,),
+                                        fit: (rotation == 0 || rotation == 2) ? BoxFit.fitWidth : BoxFit.fitHeight,
+                                      ),
                                       ///рисуем выделения найденого текста
                                       ...findedFragments.where((el) => el.pageIndex == index).toList().map((e) => Positioned(
                                           top:e.bounds.top + 5,
