@@ -17,6 +17,7 @@ import 'bookmark_class.dart';
 class AnnotationPDF{
   final bookMarkImage = pw.SvgImage(svg:'<svg width="22" height="27" viewBox="0 0 22 27" fill="none" xmlns="http://www.w3.org/2000/svg"> <path d="M0.312012 25.6042V1.25098C0.312012 0.974834 0.53587 0.750977 0.812012 0.750977H21.4119C21.6881 0.750977 21.9119 0.974835 21.9119 1.25098V25.6716C21.9119 26.0835 21.4418 26.3187 21.1122 26.0717L10.8597 18.3912C10.6743 18.2523 10.418 18.2589 10.24 18.407L1.13189 25.9884C0.806173 26.2596 0.312012 26.0279 0.312012 25.6042Z" fill="#B11720"/></svg>');
 
+
   ///добавить имеющуюся аннотацию в документ
   Future<String>addAnnotation({required String pathPdf, List<AnnotationItem>? annotations = const[],  List<BookMarkPDF>? bookmarks = const []})async{
     ///print('перегенерили ${bookmarks!.length} ${annotations!.length}  $pathPdf');
@@ -44,37 +45,24 @@ class AnnotationPDF{
                     ),
                     ///накладываем аннотацию
                     //...annotations!.where((el) => el.page == i).toList().map((e) => e.child).toList(),
-                    ...annotations!.where((el) => el.page == i && el.points!.isNotEmpty).toList().map((e){
-                      print(DateTime.now());
-                      final _points = e.points!.map((PdfPoint el) => PdfPoint(el.x,el.y)).toList().cast<PdfPoint>();
-                      print(_points);
-                      print(DateTime.now());
+                    ...annotations!.where((el) => el.page == i && el.points.isNotEmpty).toList().map((e){
+                      final _points = e.points.map((PdfPoint el) => PdfPoint(el.x,el.y)).toList().cast<PdfPoint>();
+                      ///print(_points);
                       return pw.Opacity(
                         child: pw.PolyLineAnnotation(
-                          //points: [..._points],
-                            points: [
-                              PdfPoint(413.484375, 554.30078125), PdfPoint(408.5859375, 555.0), PdfPoint(403.6875, 555.0), PdfPoint(398.7890625, 555.69921875), PdfPoint(394.890625, 555.69921875), PdfPoint(387.98828125, 555.69921875), PdfPoint(379.08203125, 555.69921875), PdfPoint(371.1796875, 555.69921875), PdfPoint(366.28125, 555.69921875), PdfPoint(360.37890625, 555.69921875), PdfPoint(355.48046875, 555.69921875), PdfPoint(352.58203125, 555.69921875), PdfPoint(350.6875, 555.69921875), PdfPoint(347.7890625, 555.69921875), PdfPoint(347.5859375, 555.69921875), PdfPoint(347.3828125, 555.69921875), PdfPoint(347.58984375, 555.69921875), PdfPoint(347.796875, 555.90234375), PdfPoint(348.00390625, 556.10546875), PdfPoint(348.2109375, 556.10546875), PdfPoint(348.41796875, 556.30859375), PdfPoint(348.625, 556.51171875), PdfPoint(348.625, 556.71484375), PdfPoint(348.83203125, 556.71484375), PdfPoint(348.83203125, 556.91796875), PdfPoint(348.83203125, 557.12109375), PdfPoint(348.83203125, 557.32421875), PdfPoint(348.83203125, 557.52734375), PdfPoint(348.62890625, 557.73046875), PdfPoint(348.22265625, 558.13671875), PdfPoint(347.328125, 558.734375), PdfPoint(346.43359375, 559.03125), PdfPoint(346.23046875, 559.03125), PdfPoint(343.33203125, 560.1875), PdfPoint(339.43359375, 562.13671875), PdfPoint(336.53515625, 563.875), PdfPoint(334.21875, 565.61328125), PdfPoint(331.90234375, 567.3515625), PdfPoint(330.48046875, 568.7734375), PdfPoint(329.8828125, 569.66796875), PdfPoint(329.28515625, 570.5625), PdfPoint(328.98828125, 571.45703125), PdfPoint(328.98828125, 572.3515625), PdfPoint(328.98828125, 573.24609375), PdfPoint(328.98828125, 575.140625), PdfPoint(328.98828125, 579.0390625), PdfPoint(328.98828125, 582.9375), PdfPoint(329.5703125, 585.8359375), PdfPoint(330.30859375, 591.73828125), PdfPoint(331.01171875, 596.63671875), PdfPoint(332.3125, 600.53515625), PdfPoint(333.7890625, 606.4375), PdfPoint(338.82421875, 616.50390625), PdfPoint(339.30078125, 618.3984375), PdfPoint(341.04296875, 621.296875), PdfPoint(343.84765625, 625.49609375), PdfPoint(346.65234375, 629.6953125), PdfPoint(349.25390625, 632.9453125), PdfPoint(350.99609375, 635.26171875), PdfPoint(352.73828125, 637.578125), PdfPoint(353.6875, 639.47265625), PdfPoint(353.6875, 639.87890625), PdfPoint(353.6875, 640.08203125), PdfPoint(353.6875, 640.48828125), PdfPoint(353.484375, 640.69140625), PdfPoint(353.078125, 641.09765625), PdfPoint(351.18359375, 641.5703125), PdfPoint(349.2890625, 642.04296875), PdfPoint(348.39453125, 642.640625), PdfPoint(347.98828125, 642.84375), PdfPoint(347.69140625, 643.73828125), PdfPoint(347.69140625, 644.14453125), PdfPoint(347.69140625, 644.55078125), PdfPoint(348.29296875, 645.4453125), PdfPoint(349.71875, 646.8671875), PdfPoint(352.62109375, 648.60546875), PdfPoint(355.5234375, 649.76171875), PdfPoint(362.4296875, 652.0625), PdfPoint(367.33203125, 654.16015625), PdfPoint(369.23046875, 655.10546875), PdfPoint(372.1328125, 655.68359375), PdfPoint(373.03125, 656.28125), PdfPoint(373.44140625, 656.28125), PdfPoint(373.44140625, 656.484375), PdfPoint(373.23828125, 656.484375), PdfPoint(372.34375, 657.08203125), PdfPoint(370.02734375, 658.8203125), PdfPoint(369.62109375, 659.2265625), PdfPoint(367.8828125, 662.125), PdfPoint(367.28515625, 663.01953125), PdfPoint(366.33984375, 664.9140625), PdfPoint(366.13671875, 665.3203125), PdfPoint(365.93359375, 665.7265625), PdfPoint(365.63671875, 666.62109375), PdfPoint(365.63671875, 666.82421875), PdfPoint(365.23046875, 667.02734375), PdfPoint(365.23046875, 667.23046875)
-                            ],
-                            border: e.border,
-                            color: e.color,
-                            author: e.author,
-                            date: e.date,
-                            subject: e.subject,
-                            content: e.content
+                          points: e.subject == 'selectText' ? [..._points,..._points] : [..._points,],
+                            //points: [PdfPoint(358.06640625, 290.18359375), PdfPoint(276.89453125, 290.18359375), PdfPoint(276.89453125, 499.22265625)],
+
+                            //points: [PdfPoint(358.06640625, 290.18359375), PdfPoint(355.16796875, 288.44140625), PdfPoint(353.2734375, 287.96484375), PdfPoint(350.375, 286.8046875), PdfPoint(344.47265625, 284.58984375), PdfPoint(342.578125, 284.11328125), PdfPoint(337.6796875, 282.7109375), PdfPoint(331.77734375, 281.234375), PdfPoint(325.875, 280.49609375), PdfPoint(320.9765625, 280.49609375), PdfPoint(313.07421875, 280.49609375), PdfPoint(307.171875, 281.23046875), PdfPoint(301.26953125, 282.703125), PdfPoint(297.37109375, 284.0), PdfPoint(291.46875, 286.2109375), PdfPoint(284.56640625, 288.51171875), PdfPoint(281.66796875, 290.25), PdfPoint(276.76953125, 292.34765625), PdfPoint(273.26953125, 295.84765625), PdfPoint(270.01953125, 298.4453125), PdfPoint(269.07421875, 300.33984375), PdfPoint(267.91796875, 303.23828125), PdfPoint(267.26953125, 307.13671875), PdfPoint(267.8515625, 310.03515625), PdfPoint(269.953125, 314.93359375), PdfPoint(275.62109375, 322.21875), PdfPoint(284.12890625, 330.72265625), PdfPoint(292.63671875, 339.2265625), PdfPoint(308.9375, 351.90234375), PdfPoint(323.2734375, 362.65234375), PdfPoint(336.62890625, 373.3359375), PdfPoint(346.83984375, 380.140625), PdfPoint(358.24609375, 389.7890625), PdfPoint(367.71484375, 399.25390625), PdfPoint(370.66796875, 404.41796875), PdfPoint(372.0703125, 409.31640625), PdfPoint(372.0703125, 413.21484375), PdfPoint(369.26953125, 417.4140625), PdfPoint(365.0703125, 420.9140625), PdfPoint(358.74609375, 426.4453125), PdfPoint(348.5390625, 433.25), PdfPoint(341.25390625, 438.9140625), PdfPoint(333.82421875, 445.515625), PdfPoint(325.3203125, 454.01953125), PdfPoint(316.81640625, 462.5234375), PdfPoint(311.44921875, 467.890625), PdfPoint(303.8984375, 476.28125), PdfPoint(297.57421875, 481.8125), PdfPoint(291.25, 486.5546875), PdfPoint(288.0, 489.15234375), PdfPoint(283.80078125, 491.953125), PdfPoint(280.55078125, 494.55078125), PdfPoint(280.14453125, 494.95703125), PdfPoint(278.72265625, 496.37890625), PdfPoint(278.31640625, 496.78515625), PdfPoint(277.91015625, 497.19140625), PdfPoint(277.70703125, 497.39453125), PdfPoint(277.50390625, 497.80078125), PdfPoint(277.30078125, 498.20703125), PdfPoint(277.09765625, 498.41015625), PdfPoint(277.09765625, 498.81640625), PdfPoint(276.89453125, 499.01953125), PdfPoint(276.89453125, 499.22265625), PdfPoint(276.89453125, 499.42578125)],
+                          border: e.border,
+                          color: e.color,
+                          author: e.author,
+                          date: e.date,
+                          subject: e.subject,
+                          content: e.content
                         ),
                         opacity: e.subject == 'selectText' ? 0.3 : 1
                     );}).toList(),
-                    ///накладываем маркер закладки
-                    // ...bookmarks!.where((e) => e.page == i).toList().map((v) => pw.Positioned(
-                    //   left: v.offset.dx,
-                    //   top: v.offset.dy,
-                    //   child: pw.SizedBox(
-                    //       width: 30,
-                    //       height: 30,
-                    //       child: bookMarkImage
-                    //   ),
-                    // )).toList(),
-
                   ]
                 ); // Center
               }));

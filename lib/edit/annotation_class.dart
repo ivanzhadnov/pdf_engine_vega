@@ -45,7 +45,7 @@ class AnnotationItem{
   ///координаты точек для полигона и полилиний
   ///размеры области нажатия для аннотаций [annotationUrl] и [annotationTextField]
   ///отступы справа и с лева для координации блоков [annotationUrl] и [annotationTextField] на странице
-  List<PdfPoint>? points;
+  List<PdfPoint> points;
   ///координаты точек для рисования марером (массив в массиве)
   List<List<PdfPoint>> pointsInk;
 
@@ -66,7 +66,7 @@ class AnnotationItem{
     this.date,
     this.content,
     this.subject,
-    this.points,
+    this.points = const [],
     this.pointsInk = const [],
     this.uuid
   }){
@@ -210,11 +210,11 @@ class AnnotationItem{
     ///если массив [points] не пуст, обрабатываем его
     ///в противном случае бежим по массиву [pointsInk]
     List<PdfPoint> _points = [];
-    if(points != null && points!.isNotEmpty){
-      _points = points!;
+    if( points.isNotEmpty){
+      _points = points;
     }else{
       for(int i = 0; i < pointsInk.length; i++){
-        _points += pointsInk[i];
+        _points = _points + pointsInk[i];
       }
       if(_points.isNotEmpty){
         if(_points.first.y == _points.last.y){
@@ -261,9 +261,9 @@ class AnnotationItem{
             showCommentDialog(context,);
           },
           child: Material.Container(
-            height: height,
+            height: subject == 'selectText' ? border!.width : height,
             width: width,
-            ///color: widgetTaped ? Material.Colors.red.withOpacity(0.2) : Material.Colors.green.withOpacity(0.2)
+            //color: widgetTaped ? Material.Colors.red.withOpacity(0.2) : Material.Colors.green.withOpacity(0.2)
             color: Material.Colors.transparent
           ),
         ),

@@ -665,7 +665,6 @@ class LoadPdf{
                                             color: Colors.yellow.withOpacity(0.5),
                                             width: e.bounds.width,
                                             height: e.bounds.height,
-
                                       ))).toList(),
                                       // Image.file(File(item), width: width,
                                       //   //height: height,
