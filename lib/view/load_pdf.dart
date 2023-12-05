@@ -390,8 +390,6 @@ class LoadPdf{
     dynamic func,
     ///направление прокрутки при просмотре файла
     Axis? scrollDirection = Axis.vertical,
-    ///подключение механизмов работы с аннотациями
-    bool? editable = false,
     ///получаем режим рисования из вне
     required AnnotState mode,
     ///номера страниц на которых установлены закладки
@@ -402,6 +400,7 @@ class LoadPdf{
     double? width,
     double? height,
   }){
+    ///print('количество аннотаций ${annotations!.length}');
     pathDoument = pathPdf;
     imageCache.clear();
     imageCache.clearLiveImages();
@@ -410,6 +409,7 @@ class LoadPdf{
     void onTap(int index)async{
       ///уточняем номер текущей страницы
       visiblyPage = index;
+      textLines = await getTextLines(page: visiblyPage);
       try{
         func();
       }catch(e){}
@@ -417,7 +417,7 @@ class LoadPdf{
     ///обработка начала рисования
     void onPanStart(v, int index, setState){
       if(mode == AnnotState.selectText || mode == AnnotState.freeForm){
-        lines[index].add(DrawLineItem());
+        lines[index].add(DrawLineItem(subject: mode.name));
         yLine = -1;
         setState((){});
       }else if(mode == AnnotState.erase){
@@ -463,18 +463,48 @@ class LoadPdf{
           y = current.dy > 0 ? maxHeight - 10 : 0;
         }
         if(mode == AnnotState.selectText){
-
           if(textLines.isNotEmpty){
+
             final calculated = textLines.where((el) => (current.dx.clamp(el.bounds.left - 5, el.bounds.right + 5) == current.dx && current.dy.clamp(el.bounds.top - 5, el.bounds.bottom + 5) == current.dy)).toList();
-            ///print(calculated.map((e) => e.text).toList());
             ///рисуем прямую при условии, что есть текст
             if(calculated.isNotEmpty){
               if(yLine == -1){
-                yLine = y;
+                yLine = calculated.map((e) => e.bounds.centerLeft.dy).last + (calculated.map((e) => e.fontSize).last / 2);
               }
-              lines[index].last.line.add(Offset(x, yLine));
+              ///print(calculated.map((e) => e.text).last);
               lines[index].last.text = calculated.map((e) => e.text).last;
+              lines[index].last.line.add(Offset(x, yLine ));
+              ///TODO определить какой именно текст в строке выделили
+              /*
+              ///длина нашего выделеного блока
+              double blockWidth = lines[index].last.line.last.dx - lines[index].last.line.first.dx + 1;
+              double letterWidth = calculated.map((e) => e.fontSize).last;
+              int cutIndex = (blockWidth / letterWidth).ceil();
+              ///определяем с какой буквы по какую отрезаем текст
+              //double textStringStart = calculated.map((e) => e.bounds.left).last;
+              //int cutedFragmentStertIndex = ((x - textStringStart) / letterWidth).ceil();
+              print('-----');
+              ///ширина одного символа
+              int textLength = calculated.map((e) => e.text.length).last;
+              double symbolWidth = (calculated.map((e) => e.bounds.right).last - calculated.map((e) => e.bounds.left).last) / textLength;
+              print(symbolWidth);
+              ///ширина нашей нарисованной линии
+              print(lines[index].last.line.last.dx - lines[index].last.line.first.dx);
+              ///ширина блока текста
+              print(calculated.map((e) => e.bounds.right).last - calculated.map((e) => e.bounds.left).last);
+              ///отсутп от начала блока до начала выделяемой мною линии в символах
+              int startCut = ((lines[index].last.line.first.dx - calculated.map((e) => e.bounds.left).last) / symbolWidth).round();
+              startCut < 0 ? startCut = 0 : null;
+              ///отступ от конца блока до конца рисуемоц линии в символах
+              int endCut = ((calculated.map((e) => e.bounds.right).last - lines[index].last.line.last.dx) / symbolWidth).round();
+              endCut > textLength || endCut < startCut ? endCut = textLength : null;
+              //print(cutedFragmentStertIndex);
+              print(startCut);
+              print(endCut);
               print(lines[index].last.text);
+              print(lines[index].last.text.substring(startCut, endCut));
+
+               */
             }
 
           }
@@ -517,9 +547,9 @@ class LoadPdf{
                   );
                   //print('принадлежит ли точка линии кругу ластика ${result}, ластик $erasePosition, точка ${lines[index][i].line[ii]} index ${ii}');
                   int splitIndex = ii; // Индекс, на котором нужно разорвать массив
-                  final tmpFirst = DrawLineItem()..color = lines[index][i].color..thickness=lines[index][i].thickness..undoLine=lines[index][i].undoLine..undoColor=lines[index][i].undoColor..undoThickness=lines[index][i].undoThickness;
+                  final tmpFirst = DrawLineItem(subject: lines[index][i].subject)..color = lines[index][i].color..thickness=lines[index][i].thickness..undoLine=lines[index][i].undoLine..undoColor=lines[index][i].undoColor..undoThickness=lines[index][i].undoThickness;
                   tmpFirst.line = lines[index][i].line.map((e) => e).toList().sublist(0, splitIndex);
-                  final tmpSecond = DrawLineItem()..color = lines[index][i].color..thickness=lines[index][i].thickness..undoLine=lines[index][i].undoLine..undoColor=lines[index][i].undoColor..undoThickness=lines[index][i].undoThickness;
+                  final tmpSecond = DrawLineItem(subject: lines[index][i].subject)..color = lines[index][i].color..thickness=lines[index][i].thickness..undoLine=lines[index][i].undoLine..undoColor=lines[index][i].undoColor..undoThickness=lines[index][i].undoThickness;
                   tmpSecond.line = lines[index][i].line.map((e) => e).toList().sublist(splitIndex);
                   if(brokenLists.length < 100){
                     brokenLists.add(tmpFirst);
@@ -595,7 +625,7 @@ class LoadPdf{
           builder: (context, snapshot) {
             if(snapshot.hasData && oldPath != pathPdf){
               ///блокируем перерисовки
-                lines = List.generate(snapshot.data!.length, (_) => [DrawLineItem()]);
+                lines = List.generate(snapshot.data!.length, (_) => [DrawLineItem(subject: mode.name)]);
                 erasePositions = List.generate(snapshot.data!.length, (_) => []);
                 globalKeys = List.generate(snapshot.data!.length, (_) => GlobalKey());
                 oldListPaths = snapshot.data!;
@@ -645,6 +675,16 @@ class LoadPdf{
                                       //height: height,
                                       //   fit: (rotation == 0 || rotation == 2) ? BoxFit.fitWidth : BoxFit.fitHeight,),
                                       ///Text('$_key', style: TextStyle(color: Colors.black),),
+                                      ///показываем, что есть закладка
+                                      ...bookmarks!.where((e) => e.page == index).toList().map((v) => Positioned(
+                                        left: v.offset.dx,
+                                        top: v.offset.dy,
+                                        child: SizedBox(
+                                            width: 30,
+                                            height: 30,
+                                            child: Image.asset('assets/pdf_buttons/bookmark_active.png')
+                                        ),
+                                      )).toList(),
                                       ///интегрируется виджет области аннотации
                                       ...annotations.where((element) =>
                                       element.page == index)

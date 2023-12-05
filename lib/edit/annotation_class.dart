@@ -4,6 +4,8 @@ import 'package:pdf/widgets.dart' as pw;
 import '../pdf_engine_vega.dart';
 import 'package:flutter/material.dart' as Material;
 
+import 'line_class.dart';
+
 ///перечисление возможных типов аннотаций
 enum AnnotationType{
   ///для рисования выделений строки используем полигон с координатами задающими выделенную область
@@ -48,12 +50,11 @@ class AnnotationItem{
   List<List<PdfPoint>> pointsInk;
 
   ///виджет аннотации для инбекции его в документ
-  pw.Widget child = pw.Container();
+  pw.Widget get child => setAnnotationWidget();
   ///виджет аннотации для формирования дерева виджетов во внутреннем просмотрщике и создания кликабельности по аннотации
   Material.Widget tapChild = Material.Container();
 
-  ///тестируем рисование новой аннтотации
-  List<Material.Offset> line = [];
+
 
   AnnotationItem({
     required this.page,
@@ -65,13 +66,15 @@ class AnnotationItem{
     this.date,
     this.content,
     this.subject,
-    this.points = const [],
+    this.points,
     this.pointsInk = const [],
     this.uuid
   }){
-    child = setAnnotationWidget();
+    //child = setAnnotationWidget();
     tapChild = setWidgetTreeWidget();
   }
+
+
 
   ///формируем виджеты PDF документа для имплантации в него аннотаций. 
   ///Это нужно при открытии документа во внешнем бразере или если им поделятся и потом откроют во внешнем браузере. 
@@ -84,6 +87,7 @@ class AnnotationItem{
     double left = -1;
     double topMax = -1;
     double leftMax = -1;
+
     points!.forEach((e) {
       if(left == -1){
         left = e.x;
@@ -114,14 +118,20 @@ class AnnotationItem{
         );
         break;
       }
+      ///видимо придется использовать множество полилайн с подстановкой цветов, толщины и массива точек
       case AnnotationType.polyLineAnnotation : {
-        result = pw.PolyLineAnnotation(
+        result =
+           pw.Opacity(
+            child:
+            pw.PolyLineAnnotation(
             points: points ?? [],
             color: color,
             author: author,
             date: date,
             subject: subject,
             content: content
+        ),
+            opacity: subject == 'selectText' ? 0.3 : 1
         );
         break;
       }
@@ -155,7 +165,6 @@ class AnnotationItem{
         break;
       }
       case AnnotationType.annotationTextField : {
-
         result = pw.Positioned(
             left: left,
             top: top,
@@ -175,12 +184,7 @@ class AnnotationItem{
                   backgroundColor: interiorColor,
                   highlighting: PdfAnnotHighlighting.push,
                   maxLength: 100,
-                  //alternateName: 'Anno',
-                  //mappingName: '',
-                  //fieldFlags: ,
                   value: subject,
-                  //defaultValue: '',
-                  //textStyle:
               )
             )
         );
@@ -436,6 +440,7 @@ class AnnotationItem{
     points.forEach((e) {
       result.add(PdfPoint(e.dx, e.dy));
     });
+    print('набрали точек ${result.length}, страница $page');
     return result;
   }
 }
