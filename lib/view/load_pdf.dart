@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:developer';
-import 'dart:ffi';
 import 'dart:io';
 
 import 'package:flutter/cupertino.dart';
@@ -99,29 +98,26 @@ class LoadPdf{
     return count;
   }
 
-  String pathDoument = '';
-  ///Future<String> get documentText => getText(pathPdf:pathDoument);
+  String pathDocument = '';
+
   ///получить текст из тела документа
   Future<String>getText({int? page = null})async{
-    String text = await syficionGetText(pathPdf:pathDoument, startPage: page, endPage: page);
+    String text = await syficionGetText(pathPdf:pathDocument, startPage: page, endPage: page);
     return text;
   }
 
-  //Future<List<sf.TextLine>> get textLines => getTextLines(page: null);
   List<sf.TextLine> textLines = [];
   ///текст строками TextLines
   Future<List<sf.TextLine>>getTextLines({ required int? page})async{
     List<sf.TextLine> text = [];
-    await syficionGetTextLines(pathPdf:pathDoument, startPage: page, endPage: page).then((value) => text = value);
-    //print(text.last.bounds.);
-    //print(text);
+    await syficionGetTextLines(pathPdf:pathDocument, startPage: page, endPage: page).then((value) => text = value);
     return text;
   }
 
   List<sf.MatchedItem> findedFragments = [];
   ///поиск текста в документе
    searchText({required int? page, required String searchText})async {
-     syficionSearchText(pathPdf: pathDoument, searchString: searchText, startPage: page).then((value) => findedFragments = value);
+     syficionSearchText(pathPdf: pathDocument, searchString: searchText, startPage: page).then((value) => findedFragments = value);
   }
 
   ///получить байты
@@ -211,7 +207,7 @@ class LoadPdf{
       imageCache.clearLiveImages();
       document.loadPage(i)
       //.renderPageAsBytes(300, 400, /*backgroundColor:  int.parse(backgroundColor, radix: 16),*/ flags: 1);
-          .savePageAsJpg('${directory.path}${Platform.pathSeparator}$fileName$i.jpg', qualityJpg: 100, flags: 1, width: _width, height: _height,)
+          .savePageAsJpg('${directory.path}${Platform.pathSeparator}$fileName$i.jpg', qualityJpg: 100, flags: 1,/* width: _width, height: _height,*/)
           .closePage();
       result.add(
           !Platform.isAndroid && !Platform.isWindows ? Image.asset('${directory.path}${Platform.pathSeparator}$fileName$i.jpg')
@@ -274,10 +270,9 @@ class LoadPdf{
         imageCache.clear();
         imageCache.clearLiveImages();
         document.loadPage(i)
-            .savePageAsJpg('${directory.path}${Platform.pathSeparator}render$i.jpg', qualityJpg: 100, flags: 1, width: _width, height: _height,)
+            .savePageAsJpg('${directory.path}${Platform.pathSeparator}render$i.jpg', qualityJpg: 100, flags: 1, /*width: _width, height: _height,*/)
             .closePage();
         bytes = (await File('${directory.path}${Platform.pathSeparator}render$i.jpg').readAsBytes());
-        //filesBytes.add(document.loadPage(i).renderPageAsBytes(300, 400, flags: 0, /*backgroundColor:  int.parse(backgroundColor, radix: 16)*/ ));
         filesBytes.add(bytes);
       }
       /// });
@@ -287,11 +282,30 @@ class LoadPdf{
 
   }
 
+  Size bornDocSize = Size(0,0);
+   double aspectRatioDoc = 1;
+   double screenWidth = 0.0;
+   double screenHeight = 0.0;
+   double aspectCoefX = 1;
+   double aspectCoefY = 1;
   ///загрузка файла PDF из ассета для всех ОС кроме ИОС и Web и помещение в файлы JPG по страницам
-  Future<List<String>> loadAssetAll({required String pathPdf}) async {
-String _path = pathPdf;
-   _path =  await syficionSearchTextAddAnnotation(pathPdf: pathPdf);
+  Future<List<String>> loadAssetAll({required String pathPdf,List<AnnotationItem>? annotations, double? width, double? height}) async {
+  String _path = pathPdf;
+  ///получаем исходные размеры документа, чтоб потом подстраивать рисование
+  bornDocSize = await syficionGrtSize(pathPdf: pathPdf);
+  aspectRatioDoc = bornDocSize.aspectRatio;
+  width ??= bornDocSize.width;
+  height ??= bornDocSize.height;
+  screenWidth = width;
+  screenHeight = width / aspectRatioDoc;
 
+  aspectCoefX = width / bornDocSize.width;
+  aspectCoefY = screenHeight / bornDocSize.height;
+
+
+
+  ///добавляем аннотации если они есть или были нарисованы
+   _path =  await syficionAddAnnotation(pathPdf: pathPdf, annotations: annotations);
     List<String> filesPaths = [];
     final directory = await getApplicationDocumentsDirectory();
     late Uint8List bytes;
@@ -312,15 +326,11 @@ String _path = pathPdf;
       imageCache.clear();
       imageCache.clearLiveImages();
       document.loadPage(i)
-      //.savePageAsPng('${directory.path}${Platform.pathSeparator}$fileName$i.png', pngLevel: 6, flags: 1, width: 2000, height: (2000 / 3 * 4).toInt(),scale: 3)
       ///в частности перечислить флаг для отображения аннотаций
-          .savePageAsJpg('${directory.path}${Platform.pathSeparator}$fileName$i.jpg', qualityJpg: 100, flags: 1, width: _width, height: _height,)
+          .savePageAsJpg('${directory.path}${Platform.pathSeparator}$fileName$i.jpg', qualityJpg: 100, flags: 1, width: screenWidth.toInt(), height: screenHeight.toInt(),)
           .closePage();
       filesPaths.add('${directory.path}${Platform.pathSeparator}$fileName$i.jpg');
     }
-    //document.closeDocument().dispose();
-
-    // });
     return filesPaths;
   }
 
@@ -369,7 +379,7 @@ String _path = pathPdf;
     if(oldListPaths.length > 1){
       final RenderObject? renderBoxRed = globalKeys[page].currentContext!.findRenderObject();
       final height = renderBoxRed?.semanticBounds.height;
-      final width = renderBoxRed?.paintBounds.width;
+      ///final width = renderBoxRed?.paintBounds.width;
       scrollController.jumpTo(height! * page - 30);
       setState();
     }
@@ -385,7 +395,7 @@ String _path = pathPdf;
   List<DrawLineItem> indexToDelete = [];
 
   ///переменные для работы с качеством изображения
-  int? _width; int? _height;
+  ///int? _width; int? _height;
 
   ///выбираем тип виджета в зависимости от платформы на которой запущено приложение
   Widget child({
@@ -407,11 +417,9 @@ String _path = pathPdf;
     double? width,
     double? height,
   }){
-    _width = 2000;
-    _height = (_width! / 3 * 4).toInt();
 
     ///print('количество аннотаций ${annotations!.length}');
-    pathDoument = pathPdf;
+    pathDocument = pathPdf;
     imageCache.clear();
     imageCache.clearLiveImages();
     bool withAnnot = annotations != null || annotations!.isNotEmpty;
@@ -456,18 +464,18 @@ String _path = pathPdf;
       Offset current = Offset(details.localPosition.dx, details.localPosition.dy);
       if(mode == AnnotState.selectText || mode == AnnotState.freeForm){
         final RenderObject? renderBoxRed = globalKeys[index].currentContext!.findRenderObject();
-        final maxHeight = renderBoxRed?.paintBounds.height;
-        final maxWidth = renderBoxRed?.paintBounds.width;
+        final maxHeight = renderBoxRed!.paintBounds.height;
+        final maxWidth = renderBoxRed.paintBounds.width;
         double x = 0;
         double y = 0;
 
 
-        if(current.dx < maxWidth! && current.dx > 0){
+        if(current.dx < maxWidth && current.dx > 0){
           x = current.dx;
         }else{
           x = current.dx > 0 ? maxWidth - 10 : 0;
         }
-        if(current.dy < maxHeight! && current.dy > 0){
+        if(current.dy < maxHeight && current.dy > 0){
           y = current.dy;
         }else{
           y = current.dy > 0 ? maxHeight - 10 : 0;
@@ -595,7 +603,6 @@ String _path = pathPdf;
     ///обработка прокрутки страниц и установка номера активной страницы
     void onVisibilityChanged(VisibilityInfo info) {
       visiblyPage = int.parse(info.key.toString().replaceAll('[<\'', '').replaceAll('\'>]', ''));
-      ///print('${DateTime.now()} page $visiblyPage');
       try{
         func();
       }catch(e){}
@@ -609,12 +616,11 @@ String _path = pathPdf;
             return !snapshot.hasData
                 ? const Center( child: SizedBox(width: 60, height: 60, child: CircularProgressIndicator()))
                 :  SingleChildScrollView(
-              ///TODO scrollDirection: scrollDirection!,
-              child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: snapshot.data!.map((item) => Image.file(File(item),)).toList()
-              ),
-            );
+                    child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: snapshot.data!.map((item) => Image.file(File(item),)).toList()
+                    ),
+                  );
           });
     }
     else if(Platform.isIOS || Platform.isWindows){
@@ -634,7 +640,7 @@ String _path = pathPdf;
             //   :
               returnOldList()
                :
-          loadAssetAll(pathPdf: pathPdf,),
+          loadAssetAll(pathPdf: pathPdf, annotations: annotations, width: width, height: height),
           builder: (context, snapshot) {
             if(snapshot.hasData && oldPath != pathPdf){
               ///блокируем перерисовки
@@ -649,7 +655,8 @@ String _path = pathPdf;
                   ///номер страницы
                   int index = snapshot.data!.indexWhere((e) => e == item);
                   imageCache.evict(FileImage(File(item)), includeLive: true);
-                  return GestureDetector(
+                  return Center(
+                      child:GestureDetector(
                       onTap: ()=>onTap(index),
                       onPanStart: (v)=>onPanStart(v, index, setState),
                       onPanEnd: (v)=>onPanEnd(v, index, setState),
@@ -660,7 +667,8 @@ String _path = pathPdf;
                           child:RotatedBox(
                               quarterTurns: rotation,
                               child: Container(
-                                color: Colors.red.withOpacity(0.5),
+                                //color: Colors.red.withOpacity(0.5),
+                                  width: screenWidth,
                                   key: globalKeys[index],
                                   margin: const EdgeInsets.fromLTRB(5, 5, 5, 5),
                                   child: Stack(
@@ -668,18 +676,19 @@ String _path = pathPdf;
                                       ///поворт блока надо совместить с нарисованными линиями
                                       Image.asset(
                                         item,
-                                        //width: width,
-                                        //height: height,
-                                        fit: (rotation == 0 || rotation == 2) ? BoxFit.fitWidth : BoxFit.fitHeight,
+                                        width: screenWidth,
+                                        height: screenHeight,
+                                        //fit: (rotation == 0 || rotation == 2) ? BoxFit.fitWidth : BoxFit.fitHeight,
                                       ),
+                                      ///TODO убрать эти блоки если нет аннотаций и починить размер экрана
                                       ///рисуем выделения найденого текста
                                       ...findedFragments.where((el) => el.pageIndex == index).toList().map((e) => Positioned(
-                                          top:e.bounds.top + 5,
-                                          left: e.bounds.left - 10,
+                                          top:e.bounds.top * aspectCoefY,
+                                          left: e.bounds.left * aspectCoefX,
                                           child: Container(
-                                            color: Colors.yellow.withOpacity(0.5),
-                                            width: e.bounds.width,
-                                            height: e.bounds.height,
+                                            color: Colors.yellow.withOpacity(0.7),
+                                            width: e.bounds.width * aspectCoefY,
+                                            height: e.bounds.height * aspectCoefX,
                                       ))).toList(),
                                       // Image.file(File(item), width: width,
                                       //   //height: height,
@@ -690,7 +699,8 @@ String _path = pathPdf;
                                       //   fit: (rotation == 0 || rotation == 2) ? BoxFit.fitWidth : BoxFit.fitHeight,),
                                       ///Text('$_key', style: TextStyle(color: Colors.black),),
                                       ///показываем, что есть закладка
-                                      ...bookmarks!.where((e) => e.page == index).toList().map((v) => Positioned(
+                                      if(bookmarks != null)
+                                      ...bookmarks.where((e) => e.page == index).toList().map((v) => Positioned(
                                         left: v.offset.dx,
                                         top: v.offset.dy,
                                         child: SizedBox(
@@ -708,6 +718,7 @@ String _path = pathPdf;
                                       //...erasePositions[index].map((e)=>FingerPaint(line:  e, mode: AnnotState.erase, color: Colors.white, thickness: eraseRadius * 2, )).toList(),
                                       ///указатель ластика
                                       if(mode == AnnotState.erase) AnnotEraser(eraseRadius: eraseRadius, erasePosition: erasePosition,),
+                                      ///TODO убрать эти блоки если нет аннотаций и починить размер экрана
                                       /*ManageAnnotButtons(
                                   mode: buttons[snapshot.data!.indexWhere((e) => e == item)],
                                   onDrawTap: ()=>setState(()=>buttons[index] = AnnotState.freeForm),
@@ -748,24 +759,18 @@ String _path = pathPdf;
                               )
                           )
                       )
+                      )
                   );
                 }
             )).toList() : [];
             return !snapshot.hasData
                 ? const Center( child: SizedBox(width: 60, height: 60, child: CircularProgressIndicator()))
-                : scrollDirection == Axis.horizontal ? ListView(
+                : ListView(
                 shrinkWrap: true,
                 physics: const ScrollPhysics(),
                 scrollDirection: scrollDirection!,
                 controller: scrollController,
                 children: children
-            ) : SingleChildScrollView(
-                controller: scrollController,
-                physics:  const ScrollPhysics(),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: children,
-                )
             );
           });
     }

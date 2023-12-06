@@ -4,8 +4,6 @@ import 'package:pdf/widgets.dart' as pw;
 import '../pdf_engine_vega.dart';
 import 'package:flutter/material.dart' as Material;
 
-import 'line_class.dart';
-
 ///перечисление возможных типов аннотаций
 enum AnnotationType{
   ///для рисования выделений строки используем полигон с координатами задающими выделенную область
