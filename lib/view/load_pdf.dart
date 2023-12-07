@@ -565,21 +565,7 @@ class LoadPdf{
     }
 
     ///запасной вариант загрузки андроидов через FFI
-    if(Platform.isAndroid){
-      return FutureBuilder<List<String>>(
-          future: withAnnot ? AnnotationPDF().addAnnotation(pathPdf: pathPdf, annotations: annotations).then((value)=>loadAssetAll(pathPdf: value,)) : loadAssetAll(pathPdf: pathPdf,),
-          builder: (context, snapshot) {
-            return !snapshot.hasData
-                ? const Center( child: SizedBox(width: 60, height: 60, child: CircularProgressIndicator()))
-                :  SingleChildScrollView(
-                    child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: snapshot.data!.map((item) => Image.file(File(item),)).toList()
-                    ),
-                  );
-          });
-    }
-    else if(Platform.isIOS || Platform.isWindows){
+    if(Platform.isIOS /*|| Platform.isWindows*/){
       return FutureBuilder<File>(
           future: withAnnot ? AnnotationPDF().addAnnotation(pathPdf: pathPdf, annotations: annotations).then((value)=>fromAssetIOS_Android(value, 'result.pdf')) : fromAssetIOS_Android(pathPdf, 'result.pdf'),
           builder: (context, snapshot) {
@@ -590,13 +576,8 @@ class LoadPdf{
     }
     else{
       return FutureBuilder<List<String>>(
-          future: //withAnnot ?
-           oldPath == pathPdf ?
-           //AnnotationPDF().addAnnotation(pathPdf: pathPdf, annotations: annotations, bookmarks: bookmarks).then((value)=>loadAssetAll(pathPdf: value,))
-            //   :
-              returnOldList()
-               :
-          loadAssetAll(pathPdf: pathPdf, annotations: annotations, bookmarks: bookmarks, width: width, height: height),
+          future: oldPath == pathPdf ? returnOldList()
+               : loadAssetAll(pathPdf: pathPdf, annotations: annotations, bookmarks: bookmarks, width: width, height: height),
           builder: (context, snapshot) {
             if(snapshot.hasData && oldPath != pathPdf){
               ///блокируем перерисовки
@@ -630,7 +611,8 @@ class LoadPdf{
                                   child: Stack(
                                     children: [
                                       ///поворт блока надо совместить с нарисованными линиями
-                                      Image.asset(
+                                     Platform.isAndroid ? Image.file(File(item),)
+                                     : Image.asset(
                                         item,
                                         width: screenWidth,
                                         height: screenHeight,
@@ -666,42 +648,7 @@ class LoadPdf{
                                           .toList(),
                                       ...lines[index].map((e)=>FingerPaint(line:  e.line, mode: mode == AnnotState.erase ? AnnotState.freeForm : mode, color: e.color, thickness: e.thickness, )).toList(),
                                       ///указатель ластика
-                                      if(mode == AnnotState.erase) AnnotEraser(eraseRadius: eraseRadius, erasePosition: erasePosition,),
-                                      /*ManageAnnotButtons(
-                                  mode: buttons[snapshot.data!.indexWhere((e) => e == item)],
-                                  onDrawTap: ()=>setState(()=>buttons[index] = AnnotState.freeForm),
-                                  onTextTap: ()=>setState(()=>buttons[index] = AnnotState.selectText),
-                                  onClearTap: ()=>setState((){
-                                    buttons[index] = AnnotState.inactive;
-                                    lines.removeAt(index);
-                                  }),
-                                  onAproveTap: ()=>addCommentDialog(context).then((value){
-                                    if(value){
-                                      AnnotationItem newAnnot = AnnotationItem(
-                                        subject: buttons[index].name,
-                                        author: 'Народ',
-                                        page: index,
-                                        annotationType: AnnotationType.inkAnnotation,
-                                        color: buttons[index] == AnnotState.freeForm ? PDF.PdfColors.blue : PDF.PdfColor.fromHex('#00ff0080'),
-                                        border: PDF.PdfBorder(PDF.PdfDocument(), buttons[index] == AnnotState.freeForm ? 4 : 12),
-                                        //interiorColor: PDF.PdfColors.blue,
-                                        pointsInk:lines[index].map((e) => AnnotationItem(page: 0, annotationType: AnnotationType.inkAnnotation).convertPointsType(e)).toList()  ,
-                                        content: commentBody,
-                                        date: DateTime.now(),
-
-                                      );
-                                      //print(AnnotationItem.fromMap({'uuid': null, 'page': 2, 'annotationType': 'inkAnnotation', 'color': '#00ff0080', 'border': null, 'author': 'Народ', 'date': 1700828655376, 'content': 'мссмти', 'subject': 'selectText', 'points': [], 'pointsInk': [[{'x': 67.0625, 'y': 258.1754150390625}, {'x': 446.60546875, 'y': 258.1754150390625}], [{'x': 66.55078125, 'y': 277.0230712890625}, {'x': 392.55078125, 'y': 277.0230712890625}], [{'x': 63.05078125, 'y': 305.4957275390625}, {'x': 376.9375, 'y': 305.4957275390625}]]}));
-                                      newAnnot.pointsInk = lines[index].map((e) => newAnnot.convertPointsType(e)).toList();
-                                      annotations.add(newAnnot);
-                                      setState((){
-                                        buttons[index] = AnnotState.inactive;
-                                        lines.removeAt(index);
-                                      });
-                                      oldPath = '';
-                                      func();
-                                    }
-                                  }),
-                                )*/
+                                      if(mode == AnnotState.erase && index == visiblyPage) AnnotEraser(eraseRadius: eraseRadius, erasePosition: erasePosition,),
                                     ],
                                   )
                               )

@@ -44,8 +44,6 @@ class AnnotationItem{
   ///размеры области нажатия для аннотаций [annotationUrl] и [annotationTextField]
   ///отступы справа и с лева для координации блоков [annotationUrl] и [annotationTextField] на странице
   List<PdfPoint> points;
-  ///координаты точек для рисования марером (массив в массиве)
-  List<List<PdfPoint>> pointsInk;
 
   ///виджет аннотации для инбекции его в документ
   pw.Widget get child => setAnnotationWidget();
@@ -68,7 +66,6 @@ class AnnotationItem{
     this.content,
     this.subject,
     this.points = const [],
-    this.pointsInk = const [],
     this.uuid
   }){
     tapChild = setWidgetTreeWidget();
@@ -138,7 +135,7 @@ class AnnotationItem{
       case AnnotationType.inkAnnotation : {
         result = pw.Opacity(
           child: pw.InkAnnotation(
-              points: pointsInk ?? [],
+              points: [],
               color: color,
               border: border,
               author: author,
@@ -212,17 +209,6 @@ class AnnotationItem{
     List<PdfPoint> _points = [];
     if( points.isNotEmpty){
       _points = points;
-    }else{
-      for(int i = 0; i < pointsInk.length; i++){
-        _points = _points + pointsInk[i];
-      }
-      if(_points.isNotEmpty){
-        if(_points.first.y == _points.last.y){
-          _points.first = PdfPoint(_points.first.x, _points.first.y);
-          _points.last = PdfPoint(_points.last.x, _points.last.y);
-        }
-      }
-
     }
       _points.forEach((e) {
         if(left == -1){
@@ -271,14 +257,12 @@ class AnnotationItem{
     page: json['page'] ?? 0,
     annotationType: AnnotationType.values.firstWhere((e) => e.name == json['annotationType']),
     color: PdfColor.fromHex(json['color']),
-    //interiorColor: PdfColor.fromHex(json['interiorColor']),
-    border: null,///TODO
+    border: PdfBorder(PdfDocument(), json['border']),
     author: json['author'],
     date: DateTime.fromMillisecondsSinceEpoch(json['date']),
     content: json['content'],
     subject: json['subject'],
     points: (json['points'] as List).map((e) => PdfPoint(e['x'], e['y'])).toList().cast<PdfPoint>(),
-    pointsInk: []//(json['pointsInk'] as List).map((List<PdfPoint> e) => e.map((v)=>PdfPoint(v['x'], v['y']))).toList().cast<List<PdfPoint>>(), ///TODO
   );
 
 
@@ -287,14 +271,12 @@ class AnnotationItem{
     "page": page,
     "annotationType": annotationType.name,
     "color": color!.toHex(),
-    //"interiorColor": interiorColor!.toHex(),
-    "border": null, ///TODO
+    "border": border!.width,
     "author": author,
     "date": date!.millisecondsSinceEpoch,
     "content": content,
     "subject": subject,
     "points": points.map((e) => {'x' : e.x, 'y': e.y}).toList(),
-    "pointsInk": pointsInk.map((e) => e.map((v) => {'x' : v.x, 'y': v.y}).toList()).toList(),
   };
 
   ///диалог ввода комментария в аннотацию
@@ -349,7 +331,6 @@ class AnnotationItem{
                                 focusNode: myFocusNode1,
                                 textAlign: Material.TextAlign.left,
                                 enabled: true,
-                                //style: inputTextStyle,
                                 keyboardType: Material.TextInputType.streetAddress,
                                 decoration: Material.InputDecoration(
                                   contentPadding: const Material.EdgeInsets.only(
@@ -358,7 +339,6 @@ class AnnotationItem{
                                       bottom: 10
                                   ),
                                   counter: Material.SizedBox.shrink(),
-                                  //hintStyle: inputHintTextStyle,
                                   hintText: "Комментарий",
                                   border: border,
                                   focusedBorder: border,
@@ -367,10 +347,7 @@ class AnnotationItem{
                                   labelText: 'Комментарий',
                                   labelStyle: Material.TextStyle(fontSize: 15.0, color: myFocusNode1.hasFocus ? const Color(0xFF1D2830) : Material.Colors.black,fontFamily: 'Inter'),
                                 ),
-                                onChanged: (_){setState(() {
-                                  //postalEmpty = false;
-                                });},
-                                //validator: (value) => postalEmpty ? 'Поле адрес не должно быть пустым' : null,
+                                onChanged: (_){setState(() {});},
                                 autovalidateMode: Material.AutovalidateMode.always,
                                 controller: controller,
                               )),
