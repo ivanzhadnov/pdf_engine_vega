@@ -59,11 +59,12 @@ class LoadPdf{
     else if(Platform.isMacOS){
       libraryPath = 'libpdfium.dylib';
     }
-    else if(Platform.isIOS){
-      final String localPath = directory.path;
-      File file = File(path.join(localPath, 'libpdfium_ios.dylib'));
-      libraryPath = file.path;
-    }
+    ///TODO привязать библиотеку к иос
+    // else if(Platform.isIOS){
+    //   final String localPath = directory.path;
+    //   File file = File(path.join(localPath, 'libpdfium_ios.dylib'));
+    //   libraryPath = file.path;
+    // }
     else if(Platform.isWindows){
       libraryPath = path.join(Directory.current.path, 'pdfium.dll');
     }
@@ -87,6 +88,7 @@ class LoadPdf{
   }
 
   ///получить количество страниц в документе
+  ///TODO переделать на сунь фунь
   Future<int>getPageCount({required String pathPdf,})async{
     int count = 0;
     try{
@@ -288,6 +290,8 @@ class LoadPdf{
    double screenHeight = 0.0;
    double aspectCoefX = 1;
    double aspectCoefY = 1;
+
+
   ///загрузка файла PDF из ассета для всех ОС кроме ИОС и Web и помещение в файлы JPG по страницам
   Future<List<String>> loadAssetAll({required String pathPdf,List<AnnotationItem>? annotations, List<BookMarkPDF>? bookmarks = const [], double? width, double? height}) async {
   String _path = pathPdf;
@@ -393,9 +397,6 @@ class LoadPdf{
   List<DrawLineItem> brokenLists = [];
   ///формируем список массивов, которые нужно будет удалить после обработки на пересечение с ластиком
   List<DrawLineItem> indexToDelete = [];
-
-  ///переменные для работы с качеством изображения
-  ///int? _width; int? _height;
 
   ///выбираем тип виджета в зависимости от платформы на которой запущено приложение
   Widget child({
@@ -611,7 +612,7 @@ class LoadPdf{
                                   child: Stack(
                                     children: [
                                       ///поворт блока надо совместить с нарисованными линиями
-                                     Platform.isAndroid ? Image.file(File(item),)
+                                     Platform.isAndroid || Platform.isWindows ? Image.file(File(item),)
                                      : Image.asset(
                                         item,
                                         width: screenWidth,
