@@ -502,8 +502,43 @@ class LoadPdf{
         }catch(e){}
       }else if(mode == AnnotState.erase){
         erasePosition = Offset(current.dx, current.dy);
+        for(int i = 0; i < lines[index].length; i++) {
+          ///массив для хранения точек подлежащих стиранию
+          List pointsToDelete = lines[index][i].line.where((point) =>
+              belongsToCircle(x: point.dx,
+                  y: point.dy,
+                  centerX: erasePosition.dx,
+                  centerY: erasePosition.dy,
+                  radius: eraseRadius)).toList();
+          if(pointsToDelete.isNotEmpty){
+            ///края по которым будем рвать массив линии на два новых массива
+            Offset pointsToGap = pointsToDelete.last;
+            pointsToDelete.removeLast();
+            lines[index][i].line.removeWhere((point) => pointsToDelete.contains(point));
+            int splitIndex = lines[index][i].line.indexWhere((element) => element == pointsToGap);
+            final tmpFirst = DrawLineItem(subject: lines[index][i].subject)..color = lines[index][i].color..thickness=lines[index][i].thickness..undoLine=lines[index][i].undoLine..undoColor=lines[index][i].undoColor..undoThickness=lines[index][i].undoThickness;
+            final tmpSecond = DrawLineItem(subject: lines[index][i].subject)..color = lines[index][i].color..thickness=lines[index][i].thickness..undoLine=lines[index][i].undoLine..undoColor=lines[index][i].undoColor..undoThickness=lines[index][i].undoThickness;
+            tmpFirst.line = lines[index][i].line.map((e) => e).toList().sublist(0, splitIndex);
+            tmpSecond.line = lines[index][i].line.map((e) => e).toList().sublist(splitIndex);
+            brokenLists..add(tmpFirst)..add(tmpSecond);
+            indexToDelete.add(lines[index][i]);
+          }
+
+        }
+
+        for(int i = 0; i < indexToDelete.length; i++){
+          lines[index].removeWhere((e) => e.toJson().toString() == indexToDelete[i].toJson().toString());
+        }
+        for(int i = 0; i < brokenLists.length; i++){
+          lines[index].add(brokenLists[i]);
+        }
+        brokenLists = [];
+        indexToDelete = [];
         setState((){});
-        if(erasePositions[index].last.isNotEmpty){
+
+
+        ///не оптимальный метод стирания
+        /*if(erasePositions[index].last.isNotEmpty){
           erasePositions[index].last.add(erasePosition);
             for(int i = 0; i < lines[index].length; i++){
               for(int ii = 0; ii < lines[index][i].line.length; ii++){
@@ -530,14 +565,10 @@ class LoadPdf{
                     brokenLists.add(tmpFirst);
                     brokenLists.add(tmpSecond);
                     indexToDelete.add(lines[index][i]);
-                  }else{
-
                   }
                 }
               }
           }
-
-
           for(int i = 0; i < indexToDelete.length; i++){
             lines[index].removeWhere((e) => e.toJson().toString() == indexToDelete[i].toJson().toString());
           }
@@ -550,11 +581,9 @@ class LoadPdf{
           lines[index].unique((x) => x.toJson().toString());
           brokenLists = [];
           indexToDelete = [];
-
-          //}
         }else{
           erasePositions[index].last.add(erasePosition);
-        }
+        }*/
       }
     }
     ///обработка прокрутки страниц и установка номера активной страницы
