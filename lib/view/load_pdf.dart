@@ -289,7 +289,7 @@ class LoadPdf{
    double aspectCoefX = 1;
    double aspectCoefY = 1;
   ///загрузка файла PDF из ассета для всех ОС кроме ИОС и Web и помещение в файлы JPG по страницам
-  Future<List<String>> loadAssetAll({required String pathPdf,List<AnnotationItem>? annotations, double? width, double? height}) async {
+  Future<List<String>> loadAssetAll({required String pathPdf,List<AnnotationItem>? annotations, List<BookMarkPDF>? bookmarks = const [], double? width, double? height}) async {
   String _path = pathPdf;
   ///получаем исходные размеры документа, чтоб потом подстраивать рисование
   bornDocSize = await syficionGrtSize(pathPdf: pathPdf);
@@ -305,7 +305,7 @@ class LoadPdf{
 
 
   ///добавляем аннотации если они есть или были нарисованы
-   _path =  await syficionAddAnnotation(pathPdf: pathPdf, annotations: annotations);
+   _path =  await syficionAddAnnotation(pathPdf: pathPdf, annotations: annotations, bookmarks: bookmarks);
     List<String> filesPaths = [];
     final directory = await getApplicationDocumentsDirectory();
     late Uint8List bytes;
@@ -468,8 +468,6 @@ class LoadPdf{
         final maxWidth = renderBoxRed.paintBounds.width;
         double x = 0;
         double y = 0;
-
-
         if(current.dx < maxWidth && current.dx > 0){
           x = current.dx;
         }else{
@@ -482,59 +480,17 @@ class LoadPdf{
         }
         if(mode == AnnotState.selectText){
           if(textLines.isNotEmpty){
-
-            final calculated = textLines.where((el) => (current.dx.clamp(el.bounds.left - 5, el.bounds.right + 5) == current.dx && current.dy.clamp(el.bounds.top - 5, el.bounds.bottom + 5) == current.dy)).toList();
+            final calculated = textLines.where((el) => current.dy.clamp(el.bounds.top * aspectCoefY, el.bounds.bottom * aspectCoefY) == current.dy).toList();
             ///рисуем прямую при условии, что есть текст
             if(calculated.isNotEmpty){
               if(yLine == -1){
-                yLine = calculated.map((e) => e.bounds.centerLeft.dy).last + (calculated.map((e) => e.fontSize).last / 2);
+                yLine = calculated.map((e) => e.bounds.centerLeft.dy * aspectCoefY).last;
               }
-              ///print(calculated.map((e) => e.text).last);
+              print(calculated.map((e) => e.text).last);
               lines[index].last.text = calculated.map((e) => e.text).last;
               lines[index].last.line.add(Offset(x, yLine ));
-              ///TODO определить какой именно текст в строке выделили
-              /*
-              ///длина нашего выделеного блока
-              double blockWidth = lines[index].last.line.last.dx - lines[index].last.line.first.dx + 1;
-              double letterWidth = calculated.map((e) => e.fontSize).last;
-              int cutIndex = (blockWidth / letterWidth).ceil();
-              ///определяем с какой буквы по какую отрезаем текст
-              //double textStringStart = calculated.map((e) => e.bounds.left).last;
-              //int cutedFragmentStertIndex = ((x - textStringStart) / letterWidth).ceil();
-              print('-----');
-              ///ширина одного символа
-              int textLength = calculated.map((e) => e.text.length).last;
-              double symbolWidth = (calculated.map((e) => e.bounds.right).last - calculated.map((e) => e.bounds.left).last) / textLength;
-              print(symbolWidth);
-              ///ширина нашей нарисованной линии
-              print(lines[index].last.line.last.dx - lines[index].last.line.first.dx);
-              ///ширина блока текста
-              print(calculated.map((e) => e.bounds.right).last - calculated.map((e) => e.bounds.left).last);
-              ///отсутп от начала блока до начала выделяемой мною линии в символах
-              int startCut = ((lines[index].last.line.first.dx - calculated.map((e) => e.bounds.left).last) / symbolWidth).round();
-              startCut < 0 ? startCut = 0 : null;
-              ///отступ от конца блока до конца рисуемоц линии в символах
-              int endCut = ((calculated.map((e) => e.bounds.right).last - lines[index].last.line.last.dx) / symbolWidth).round();
-              endCut > textLength || endCut < startCut ? endCut = textLength : null;
-              //print(cutedFragmentStertIndex);
-              print(startCut);
-              print(endCut);
-              print(lines[index].last.text);
-              print(lines[index].last.text.substring(startCut, endCut));
-
-               */
             }
-
           }
-
-          ///рисуем горизонтальную прямую маркером
-          // if(yLine == -1){
-          //   yLine = y;
-          // }
-          // lines[index].last.line.add(Offset(x, yLine));
-
-
-
         }else{
           ///просто рисуем кривую
           lines[index].last.line.add(Offset(x, y));
@@ -636,11 +592,11 @@ class LoadPdf{
       return FutureBuilder<List<String>>(
           future: //withAnnot ?
            oldPath == pathPdf ?
-          // AnnotationPDF().addAnnotation(pathPdf: pathPdf, annotations: annotations, bookmarks: bookmarks).then((value)=>loadAssetAll(pathPdf: value,))
+           //AnnotationPDF().addAnnotation(pathPdf: pathPdf, annotations: annotations, bookmarks: bookmarks).then((value)=>loadAssetAll(pathPdf: value,))
             //   :
               returnOldList()
                :
-          loadAssetAll(pathPdf: pathPdf, annotations: annotations, width: width, height: height),
+          loadAssetAll(pathPdf: pathPdf, annotations: annotations, bookmarks: bookmarks, width: width, height: height),
           builder: (context, snapshot) {
             if(snapshot.hasData && oldPath != pathPdf){
               ///блокируем перерисовки
@@ -678,9 +634,7 @@ class LoadPdf{
                                         item,
                                         width: screenWidth,
                                         height: screenHeight,
-                                        //fit: (rotation == 0 || rotation == 2) ? BoxFit.fitWidth : BoxFit.fitHeight,
                                       ),
-                                      ///TODO убрать эти блоки если нет аннотаций и починить размер экрана
                                       ///рисуем выделения найденого текста
                                       ...findedFragments.where((el) => el.pageIndex == index).toList().map((e) => Positioned(
                                           top:e.bounds.top * aspectCoefY,
@@ -690,14 +644,6 @@ class LoadPdf{
                                             width: e.bounds.width * aspectCoefY,
                                             height: e.bounds.height * aspectCoefX,
                                       ))).toList(),
-                                      // Image.file(File(item), width: width,
-                                      //   //height: height,
-                                      //   fit: (rotation == 0 || rotation == 2) ? BoxFit.fitWidth : BoxFit.fitHeight,),
-                                      ///использован этот виджет т.к. он не кеширует картинки
-                                      //Image.memory(File(item).readAsBytesSync(), width: width,
-                                      //height: height,
-                                      //   fit: (rotation == 0 || rotation == 2) ? BoxFit.fitWidth : BoxFit.fitHeight,),
-                                      ///Text('$_key', style: TextStyle(color: Colors.black),),
                                       ///показываем, что есть закладка
                                       if(bookmarks != null)
                                       ...bookmarks.where((e) => e.page == index).toList().map((v) => Positioned(
@@ -712,13 +658,15 @@ class LoadPdf{
                                       ///интегрируется виджет области аннотации
                                       ...annotations.where((element) =>
                                       element.page == index)
-                                          .toList().map((e) => e.tapChild)
+                                          .toList().map((e){
+                                            e.aspectCoefX = aspectCoefX;
+                                            e.aspectCoefY = aspectCoefY;
+                                        return e.tapChild;
+                                      })
                                           .toList(),
                                       ...lines[index].map((e)=>FingerPaint(line:  e.line, mode: mode == AnnotState.erase ? AnnotState.freeForm : mode, color: e.color, thickness: e.thickness, )).toList(),
-                                      //...erasePositions[index].map((e)=>FingerPaint(line:  e, mode: AnnotState.erase, color: Colors.white, thickness: eraseRadius * 2, )).toList(),
                                       ///указатель ластика
                                       if(mode == AnnotState.erase) AnnotEraser(eraseRadius: eraseRadius, erasePosition: erasePosition,),
-                                      ///TODO убрать эти блоки если нет аннотаций и починить размер экрана
                                       /*ManageAnnotButtons(
                                   mode: buttons[snapshot.data!.indexWhere((e) => e == item)],
                                   onDrawTap: ()=>setState(()=>buttons[index] = AnnotState.freeForm),

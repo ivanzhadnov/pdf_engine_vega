@@ -52,6 +52,9 @@ class AnnotationItem{
   ///виджет аннотации для формирования дерева виджетов во внутреннем просмотрщике и создания кликабельности по аннотации
   Material.Widget tapChild = Material.Container();
 
+  double aspectCoefY = 1;
+  double aspectCoefX = 1;
+
 
 
   AnnotationItem({
@@ -68,7 +71,6 @@ class AnnotationItem{
     this.pointsInk = const [],
     this.uuid
   }){
-    //child = setAnnotationWidget();
     tapChild = setWidgetTreeWidget();
   }
 
@@ -86,7 +88,7 @@ class AnnotationItem{
     double topMax = -1;
     double leftMax = -1;
 
-    points!.forEach((e) {
+    points.forEach((e) {
       if(left == -1){
         left = e.x;
       }
@@ -216,8 +218,8 @@ class AnnotationItem{
       }
       if(_points.isNotEmpty){
         if(_points.first.y == _points.last.y){
-          _points.first = PdfPoint(_points.first.x, _points.first.y + 10);
-          _points.last = PdfPoint(_points.last.x, _points.last.y - 10);
+          _points.first = PdfPoint(_points.first.x, _points.first.y);
+          _points.last = PdfPoint(_points.last.x, _points.last.y);
         }
       }
 
@@ -244,24 +246,19 @@ class AnnotationItem{
         builder: (Material.BuildContext context, Material.StateSetter setState)
     {
       return Material.Positioned(
-        top: top,
-        left: left,
+        top: (top * aspectCoefY) - border!.width,
+        left: left * aspectCoefX,
         child: Material.GestureDetector(
           onTap: (){
-            ///TODO отработать поведение для разного типа аннотаций
-            ///ссылка переход
-            ///текстфилд заполнить значение
-            ///кривая показать диалог с контентом
             setState((){
               widgetTaped = !widgetTaped;
             });
-
             showCommentDialog(context,);
           },
           child: Material.Container(
-            height: subject == 'selectText' ? border!.width : height,
-            width: width,
-            //color: widgetTaped ? Material.Colors.red.withOpacity(0.2) : Material.Colors.green.withOpacity(0.2)
+            height: subject == 'selectText' ? border!.width * 2 : height * aspectCoefX,
+            width: width * aspectCoefX,
+            //color: widgetTaped ? Material.Colors.red.withOpacity(0.5) : Material.Colors.green.withOpacity(0.5)
             color: Material.Colors.transparent
           ),
         ),
@@ -296,8 +293,8 @@ class AnnotationItem{
     "date": date!.millisecondsSinceEpoch,
     "content": content,
     "subject": subject,
-    "points": points!.map((e) => {'x' : e.x, 'y': e.y}).toList(),
-    "pointsInk": pointsInk!.map((e) => e.map((v) => {'x' : v.x, 'y': v.y}).toList()).toList(),
+    "points": points.map((e) => {'x' : e.x, 'y': e.y}).toList(),
+    "pointsInk": pointsInk.map((e) => e.map((v) => {'x' : v.x, 'y': v.y}).toList()).toList(),
   };
 
   ///диалог ввода комментария в аннотацию
