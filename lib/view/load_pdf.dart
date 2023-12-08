@@ -60,44 +60,37 @@ class LoadPdf{
       libraryPath = 'libpdfium.dylib';
     }
     ///TODO привязать библиотеку к иос
-    // else if(Platform.isIOS){
-    //   final String localPath = directory.path;
-    //   File file = File(path.join(localPath, 'libpdfium_ios.dylib'));
-    //   libraryPath = file.path;
-    // }
+    else if(Platform.isIOS){
+      final String localPath = directory.path;
+      File file = File(path.join(localPath, 'libpdfium_ios.dylib'));
+      libraryPath = file.path;
+    }
     else if(Platform.isWindows){
       libraryPath = path.join(Directory.current.path, 'pdfium.dll');
     }
     else if(Platform.isLinux){
       libraryPath = path.join(Directory.current.path, 'libpdfium.so');
     }
-    pdfium = PdfiumWrap(libraryPath: libraryPath);
+    if(!Platform.isIOS)pdfium = PdfiumWrap(libraryPath: libraryPath);
     return true;
   }
 
   ///получить массив со страницами в зависиомтси от ОС
+  ///юзаем только чтоб показать лицензию
+  ///TODO убрать
   Future<List<Image>>getPagesListImage({required String pathPdf, int ration = 1, String backgroundColor = '#FF0B1730'})async {
     List<Image> result = [];
     if(Platform.isIOS){
       result = await loadAssetAsListIOS(pathPdf: pathPdf, ration: ration, backgroundColor: backgroundColor);
     }else{
-      result = await loadAssetAsList(
-          pathPdf: pathPdf, ration: ration, backgroundColor: backgroundColor);
+      result = await loadAssetAsList(pathPdf: pathPdf, ration: ration, backgroundColor: backgroundColor);
     }
     return result;
   }
 
   ///получить количество страниц в документе
-  ///TODO переделать на сунь фунь
   Future<int>getPageCount({required String pathPdf,})async{
-    int count = 0;
-    try{
-      PdfDocument pdfDocument = await PdfDocument.openFile(pathPdf);
-      count = pdfDocument.pagesCount;
-      await pdfDocument.close();
-    }catch(e){}
-
-    return count;
+    return await syficionGetPageCount(pathPdf: pathPdf);
   }
 
   String pathDocument = '';
@@ -118,11 +111,12 @@ class LoadPdf{
 
   List<sf.MatchedItem> findedFragments = [];
   ///поиск текста в документе
-   searchText({required int? page, required String searchText})async {
-     syficionSearchText(pathPdf: pathDocument, searchString: searchText, startPage: page).then((value) => findedFragments = value);
+  @override
+  searchText({required int? page, required String searchText}){
+    syficionSearchText(pathPdf: pathDocument, searchString: searchText, startPage: page).then((value) => findedFragments = value);
   }
 
-  ///получить байты
+  ///получить байты Используется в 4-х местах в проекте
   Future<Uint8List>getBytesFromAsset({required String pathPdf, int ration = 1, String backgroundColor = '#FFFFFFFF', required int page})async{
     Uint8List bytes = Uint8List(0);
     PdfDocument pdfDocument = await PdfDocument.openFile(pathPdf);
@@ -142,14 +136,16 @@ class LoadPdf{
       debugPrint('Load UserAgreement from Assets error: $e');
     }
     //await _pdfDocument.close();
-
     return bytes;
   }
 
   ///тут и на будущее в просмотрщики получить List<Image> for iOS
+  ///используется только для показа лицензии
+  ///TODO убрать
   Future<List<Image>>loadAssetAsListIOS({required String pathPdf, int ration = 1, String backgroundColor = '#FFFFFFFF'})async{
     PdfDocument pdfDocument = await PdfDocument.openAsset(pathPdf);
     final pageCount = pdfDocument.pagesCount;
+
     List<Image> result = [];
     for (int i = 1; i <= pageCount; i++) {
       try {
@@ -184,12 +180,11 @@ class LoadPdf{
 
 
   ///тут и на будущее в просмотрщики получить List<Image>
+  ///используется только для показа лицензии
+  ///TODO убрать
   Future<List<Image>> loadAssetAsList({required String pathPdf, int ration = 1, String backgroundColor = '#FFFFFFFF'})async{
-
     List<Image> result = [];
-    ///await setPdfium().then((value)async{
     final directory = await getApplicationDocumentsDirectory();
-    //final bytes = (await rootBundle.load(pathPdf)).buffer.asUint8List();
     late Uint8List bytes;
     ///загрузка из ассета, но нам может понадобиться загрузка из локального хранилища
     try{
@@ -197,12 +192,9 @@ class LoadPdf{
     }catch(e){
       bytes = (await File(pathPdf).readAsBytes());
     }
-
     PdfiumWrap document = pdfium!.loadDocumentFromBytes(bytes);
-
     int pageCount = document.getPageCount();
     for(int i = 0; i < pageCount; i++){
-      //String fileName = DateTime.now().millisecondsSinceEpoch.toString();
       String fileName = 'render';
       imageCache.evict(FileImage(File('${directory.path}${Platform.pathSeparator}$fileName$i.jpg')), includeLive: true);
       imageCache.clear();
@@ -217,144 +209,84 @@ class LoadPdf{
       );
     }
     //document.closeDocument().dispose();
-    ///});
-
     return result;
   }
 
-  ///загрузить в память список jpg файлов полученных из страниц ПДФ документа (IOS)
-  Future<List<Uint8List>> loadRenderingImagesPaths({required String pathPdf, int ration = 1, String backgroundColor = '#FFFFFFFF'})async{
-    List<Uint8List> filesBytes = [];
+
+
+  Size bornDocSize = const Size(0,0);
+  double aspectRatioDoc = 1;
+  double screenWidth = 0.0;
+  double screenHeight = 0.0;
+  double aspectCoefX = 1;
+  double aspectCoefY = 1;
+
+
+  ///загрузка файла PDF целиком
+  Future<List<Uint8List>> loadAssetAll({required String pathPdf,List<AnnotationItem>? annotations, List<BookMarkPDF>? bookmarks = const [], double? width, double? height}) async {
+    String _path = pathPdf;
+    ///получаем исходные размеры документа, чтоб потом подстраивать рисование
+    bornDocSize = await syficionGrtSize(pathPdf: pathPdf);
+    aspectRatioDoc = bornDocSize.aspectRatio;
+    width ??= bornDocSize.width;
+    height ??= bornDocSize.height;
+    screenWidth = width;
+    screenHeight = width / aspectRatioDoc;
+    aspectCoefX = width / bornDocSize.width;
+    aspectCoefY = screenHeight / bornDocSize.height;
+
+    ///добавляем аннотации если они есть или были нарисованы
+    _path =  await syficionAddAnnotation(pathPdf: pathPdf, annotations: annotations, bookmarks: bookmarks);
+    List<Uint8List> filesPaths = [];
+    final directory = await getApplicationDocumentsDirectory();
+    String fileName = 'render';
+    int pageCount = await syficionGetPageCount(pathPdf:  _path);
     if(Platform.isIOS){
-      PdfDocument pdfDocument = await PdfDocument.openAsset(pathPdf);
-      final pageCount = pdfDocument.pagesCount;
+      PdfDocument pdfDocument = await PdfDocument.openFile(_path);
       for (int i = 1; i <= pageCount; i++) {
-        try {
-          final pdfPage = await pdfDocument.getPage(i);
-          final pdfWidth = pdfPage.width * ration;
-          final pdfHeight = pdfPage.height * ration;
-          final image = await pdfPage.render(
-            width: pdfWidth,
-            height: pdfHeight,
-            format: PdfPageImageFormat.jpeg,
-            backgroundColor: backgroundColor,
-            quality: 100,
-            cropRect: i == 4 ? Rect.fromLTWH(0, 0, pdfWidth, 140) : null,
-          );
-          final bytes = image!.bytes;
-          filesBytes.add(bytes);
-        }
-        catch (e) {
-          debugPrint('Load UserAgreement from Assets error: $e');
-        }
+        final pdfPage = await pdfDocument.getPage(i);
+        final pdfWidth = screenWidth * 2;
+        final pdfHeight = screenHeight * 2;
+        final image = await pdfPage.render(
+          width: pdfWidth,
+          height: pdfHeight,
+          format: PdfPageImageFormat.jpeg,
+          backgroundColor: '#FFFFFFFF',
+          quality: 100,
+        );
+        final bytes = image!.bytes;
+        //File file = File('${directory.path}${Platform.pathSeparator}$fileName$i.jpg');
+        //file.writeAsBytes(bytes);
+        filesPaths.add(bytes);
+
       }
       await pdfDocument.close();
+    }
+    else{
 
-    }else{
-      /// await setPdfium().then((value)async{
-      final directory = await getApplicationDocumentsDirectory();
       late Uint8List bytes;
       ///загрузка из ассета, но нам может понадобиться загрузка из локального хранилища
       try{
-        bytes = (await rootBundle.load(pathPdf)).buffer.asUint8List();
+        bytes = (await rootBundle.load(_path)).buffer.asUint8List();
       }catch(e){
-        bytes = (await File(pathPdf).readAsBytes());
+        bytes = (await File(_path).readAsBytes());
       }
       ///получить количество страниц
       final document = pdfium!.loadDocumentFromBytes(bytes);
-      int countPages = document.getPageCount();
-      //int width = document.getPageWidth().toInt();
-      //int height = document.getPageHeight().toInt();
       ///циклом собрать массив отрендеренных страниц для отображения
 
-      for(int i = 0; i < countPages; i++){
-        imageCache.evict(FileImage(File('${directory.path}${Platform.pathSeparator}render$i.jpg')), includeLive: true);
-        imageCache.clear();
-        imageCache.clearLiveImages();
-        document.loadPage(i)
-            .savePageAsJpg('${directory.path}${Platform.pathSeparator}render$i.jpg', qualityJpg: 100, flags: 1, /*width: _width, height: _height,*/)
+      for(int i = 0; i < pageCount; i++){
+        //imageCache.evict(FileImage(File('${directory.path}${Platform.pathSeparator}$fileName$i.jpg')), includeLive: true);
+        //imageCache.clear();
+        //imageCache.clearLiveImages();
+        await document.loadPage(i).
+            savePageAsJpg('${directory.path}${Platform.pathSeparator}$fileName$i.jpg', qualityJpg: 100, flags: 1, width: screenWidth.toInt(), height: screenHeight.toInt(),)
             .closePage();
-        bytes = (await File('${directory.path}${Platform.pathSeparator}render$i.jpg').readAsBytes());
-        filesBytes.add(bytes);
+        final bytes = await File('${directory.path}${Platform.pathSeparator}$fileName$i.jpg').readAsBytes();
+        filesPaths.add(bytes);
       }
-      /// });
-
-    }
-    return filesBytes;
-
-  }
-
-  Size bornDocSize = Size(0,0);
-   double aspectRatioDoc = 1;
-   double screenWidth = 0.0;
-   double screenHeight = 0.0;
-   double aspectCoefX = 1;
-   double aspectCoefY = 1;
-
-
-  ///загрузка файла PDF из ассета для всех ОС кроме ИОС и Web и помещение в файлы JPG по страницам
-  Future<List<String>> loadAssetAll({required String pathPdf,List<AnnotationItem>? annotations, List<BookMarkPDF>? bookmarks = const [], double? width, double? height}) async {
-  String _path = pathPdf;
-  ///получаем исходные размеры документа, чтоб потом подстраивать рисование
-  bornDocSize = await syficionGrtSize(pathPdf: pathPdf);
-  aspectRatioDoc = bornDocSize.aspectRatio;
-  width ??= bornDocSize.width;
-  height ??= bornDocSize.height;
-  screenWidth = width;
-  screenHeight = width / aspectRatioDoc;
-
-  aspectCoefX = width / bornDocSize.width;
-  aspectCoefY = screenHeight / bornDocSize.height;
-
-
-
-  ///добавляем аннотации если они есть или были нарисованы
-   _path =  await syficionAddAnnotation(pathPdf: pathPdf, annotations: annotations, bookmarks: bookmarks);
-    List<String> filesPaths = [];
-    final directory = await getApplicationDocumentsDirectory();
-    late Uint8List bytes;
-    ///загрузка из ассета, но нам может понадобиться загрузка из локального хранилища
-    try{
-      bytes = (await rootBundle.load(_path)).buffer.asUint8List();
-    }catch(e){
-      bytes = (await File(_path).readAsBytes());
-    }
-    ///получить количество страниц
-    final document = pdfium!.loadDocumentFromBytes(bytes);
-    int countPages = document.getPageCount();
-    ///циклом собрать массив отрендеренных страниц для отображения
-
-    for(int i = 0; i < countPages; i++){
-      String fileName = 'render';
-      imageCache.evict(FileImage(File('${directory.path}${Platform.pathSeparator}$fileName$i.jpg')), includeLive: true);
-      imageCache.clear();
-      imageCache.clearLiveImages();
-      document.loadPage(i)
-      ///в частности перечислить флаг для отображения аннотаций
-          .savePageAsJpg('${directory.path}${Platform.pathSeparator}$fileName$i.jpg', qualityJpg: 100, flags: 1, width: screenWidth.toInt(), height: screenHeight.toInt(),)
-          .closePage();
-      filesPaths.add('${directory.path}${Platform.pathSeparator}$fileName$i.jpg');
     }
     return filesPaths;
-  }
-
-  ///загрузка файла из ассета для ИОС
-  Future<File> fromAssetIOS_Android(String asset, String filename) async {
-    // To open from assets, you can copy them to the app storage folder, and the access them "locally"
-    Completer<File> completer = Completer();
-
-    try {
-      var dir = await getApplicationDocumentsDirectory();
-      File file = File("${dir.path}${Platform.pathSeparator}$filename");
-      var data = await rootBundle.load(asset);
-      var bytes = data.buffer.asUint8List();
-      await file.writeAsBytes(bytes, flush: true);
-      completer.complete(file);
-    } catch (e) {
-      throw Exception('Error parsing asset file!');
-    }
-
-    return completer.future;
   }
 
   List<List<DrawLineItem>> lines = [];
@@ -366,7 +298,7 @@ class LoadPdf{
   List<GlobalKey> globalKeys = [];
 
   String oldPath = '';
-  List<String> oldListPaths = [];
+  List<Uint8List> oldListPaths = [];
 
 
   ///индикация активной страницы и перелистывание страниц
@@ -374,7 +306,7 @@ class LoadPdf{
   ScrollController scrollController = ScrollController();
 
   ///возвращаем уже сохраненные картинки с ПДФ для блокировки нежелательной перерисовки
-  Future<List<String>> returnOldList()async{
+  Future<List<Uint8List>> returnOldList()async{
     return oldListPaths;
   }
 
@@ -383,7 +315,6 @@ class LoadPdf{
     if(oldListPaths.length > 1){
       final RenderObject? renderBoxRed = globalKeys[page].currentContext!.findRenderObject();
       final height = renderBoxRed?.semanticBounds.height;
-      ///final width = renderBoxRed?.paintBounds.width;
       scrollController.jumpTo(height! * page - 30);
       setState();
     }
@@ -395,10 +326,9 @@ class LoadPdf{
   List<List<List<Offset>>> erasePositions = [];
   ///формируем разорванные ластиком массивы, после добавим их в основной массив
   List<DrawLineItem> brokenLists = [];
-  ///формируем список массивов, которые нужно будет удалить после обработки на пересечение с ластиком
-  List<DrawLineItem> indexToDelete = [];
 
-  ///выбираем тип виджета в зависимости от платформы на которой запущено приложение
+
+  ///Загружаем в ListView документ целиком
   Widget child({
     ///путь к файлу PDF, может быть как asset так и из хранилища документов
     required String pathPdf,
@@ -418,12 +348,9 @@ class LoadPdf{
     double? width,
     double? height,
   }){
-
-    ///print('количество аннотаций ${annotations!.length}');
-    pathDocument = pathPdf;
     imageCache.clear();
     imageCache.clearLiveImages();
-    bool withAnnot = annotations != null || annotations!.isNotEmpty;
+    pathDocument = pathPdf;
     ///обработка нажатия на страницу
     void onTap(int index)async{
       ///уточняем номер текущей страницы
@@ -521,69 +448,14 @@ class LoadPdf{
             tmpFirst.line = lines[index][i].line.map((e) => e).toList().sublist(0, splitIndex);
             tmpSecond.line = lines[index][i].line.map((e) => e).toList().sublist(splitIndex);
             brokenLists..add(tmpFirst)..add(tmpSecond);
-            indexToDelete.add(lines[index][i]);
+          }else{
+            brokenLists.add(lines[index][i]);
           }
-
         }
 
-        for(int i = 0; i < indexToDelete.length; i++){
-          lines[index].removeWhere((e) => e.toJson().toString() == indexToDelete[i].toJson().toString());
-        }
-        for(int i = 0; i < brokenLists.length; i++){
-          lines[index].add(brokenLists[i]);
-        }
+        lines[index] = brokenLists;
         brokenLists = [];
-        indexToDelete = [];
         setState((){});
-
-
-        ///не оптимальный метод стирания
-        /*if(erasePositions[index].last.isNotEmpty){
-          erasePositions[index].last.add(erasePosition);
-            for(int i = 0; i < lines[index].length; i++){
-              for(int ii = 0; ii < lines[index][i].line.length; ii++){
-                bool result = belongsToCircle(x: lines[index][i].line[ii].dx, y: lines[index][i].line[ii].dy, centerX: erasePosition.dx, centerY: erasePosition.dy, radius: eraseRadius);
-                if(result){
-                  ///надо удалить из brokenLists массивы, где присутсвует удаляемая точка
-                  brokenLists.removeWhere((e) =>
-                  ///удаляем списки где есть полное совпадение с родительским списком
-                  e.toJson().toString().contains(lines[index][i].toJson().toString())
-                      ///удаляем пустые списки
-                      || e.line.isEmpty
-                      ///удаляем короткие списки
-                      || e.line.length < 2
-                    ///удаляем списки где есть есть попадание в круг стерки
-                    //|| brokenLists.map((e) => e.line.map((l) => belongsToCircle(x: l.dx, y: l.dy, centerX: erasePosition.dx, centerY: erasePosition.dy, radius: eraseRadius) == true).toList()).toList().isNotEmpty
-                  );
-                  //print('принадлежит ли точка линии кругу ластика ${result}, ластик $erasePosition, точка ${lines[index][i].line[ii]} index ${ii}');
-                  int splitIndex = ii; // Индекс, на котором нужно разорвать массив
-                  final tmpFirst = DrawLineItem(subject: lines[index][i].subject)..color = lines[index][i].color..thickness=lines[index][i].thickness..undoLine=lines[index][i].undoLine..undoColor=lines[index][i].undoColor..undoThickness=lines[index][i].undoThickness;
-                  tmpFirst.line = lines[index][i].line.map((e) => e).toList().sublist(0, splitIndex);
-                  final tmpSecond = DrawLineItem(subject: lines[index][i].subject)..color = lines[index][i].color..thickness=lines[index][i].thickness..undoLine=lines[index][i].undoLine..undoColor=lines[index][i].undoColor..undoThickness=lines[index][i].undoThickness;
-                  tmpSecond.line = lines[index][i].line.map((e) => e).toList().sublist(splitIndex);
-                  if(brokenLists.length < 100){
-                    brokenLists.add(tmpFirst);
-                    brokenLists.add(tmpSecond);
-                    indexToDelete.add(lines[index][i]);
-                  }
-                }
-              }
-          }
-          for(int i = 0; i < indexToDelete.length; i++){
-            lines[index].removeWhere((e) => e.toJson().toString() == indexToDelete[i].toJson().toString());
-          }
-          brokenLists..removeWhere((e) => e.line.isEmpty)..removeWhere((el) => el.line.length < 4);
-          brokenLists.unique((x) => x.toJson().toString());
-          for(int i = 0; i < brokenLists.length; i++){
-            lines[index].add(brokenLists[i]);
-          }
-          lines[index]..removeWhere((e) => e.line.isEmpty)..removeWhere((el) => el.line.length < 4);
-          lines[index].unique((x) => x.toJson().toString());
-          brokenLists = [];
-          indexToDelete = [];
-        }else{
-          erasePositions[index].last.add(erasePosition);
-        }*/
       }
     }
     ///обработка прокрутки страниц и установка номера активной страницы
@@ -594,117 +466,107 @@ class LoadPdf{
       }catch(e){}
     }
 
-    ///запасной вариант загрузки андроидов через FFI
-    if(Platform.isIOS /*|| Platform.isWindows*/){
-      return FutureBuilder<File>(
-          future: withAnnot ? AnnotationPDF().addAnnotation(pathPdf: pathPdf, annotations: annotations).then((value)=>fromAssetIOS_Android(value, 'result.pdf')) : fromAssetIOS_Android(pathPdf, 'result.pdf'),
-          builder: (context, snapshot) {
-            return !snapshot.hasData || snapshot.data is !File
-                ? const Center( child: SizedBox(width: 60, height: 60, child: CircularProgressIndicator()))
-                :  PDFViewer_iOS(file: snapshot.data!,);
-          });
-    }
-    else{
-      return FutureBuilder<List<String>>(
-          future: oldPath == pathPdf ? returnOldList()
-               : loadAssetAll(pathPdf: pathPdf, annotations: annotations, bookmarks: bookmarks, width: width, height: height),
-          builder: (context, snapshot) {
-            if(snapshot.hasData && oldPath != pathPdf){
-              ///блокируем перерисовки
-                lines = List.generate(snapshot.data!.length, (_) => [DrawLineItem(subject: mode.name)]);
-                erasePositions = List.generate(snapshot.data!.length, (_) => []);
-                globalKeys = List.generate(snapshot.data!.length, (_) => GlobalKey());
-                oldListPaths = snapshot.data!;
-                oldPath = pathPdf;
-            }
-            List<Widget> children = snapshot.hasData ? snapshot.data!.map((item) => StatefulBuilder(
-                builder: (BuildContext context, StateSetter setState){
-                  ///номер страницы
-                  int index = snapshot.data!.indexWhere((e) => e == item);
-                  imageCache.evict(FileImage(File(item)), includeLive: true);
-                  return Center(
-                      child:GestureDetector(
-                      onTap: ()=>onTap(index),
-                      onPanStart: (v)=>onPanStart(v, index, setState),
-                      onPanEnd: (v)=>onPanEnd(v, index, setState),
-                      onPanUpdate: (details)=>onPanUpdate(details, index, setState),
-                      child: VisibilityDetector(
-                          key: ValueKey("$index"),
-                          onVisibilityChanged: (VisibilityInfo info)=>onVisibilityChanged(info),
-                          child:RotatedBox(
-                              quarterTurns: rotation,
-                              child: Container(
-                                //color: Colors.red.withOpacity(0.5),
-                                  width: screenWidth,
-                                  key: globalKeys[index],
-                                  margin: const EdgeInsets.fromLTRB(5, 5, 5, 5),
-                                  child: Stack(
-                                    children: [
-                                      ///поворт блока надо совместить с нарисованными линиями
-                                     Platform.isAndroid || Platform.isWindows ? Image.file(File(item),)
-                                     : Image.asset(
-                                        item,
-                                        width: screenWidth,
-                                        height: screenHeight,
-                                      ),
-                                      ///рисуем выделения найденого текста
-                                      ...findedFragments.where((el) => el.pageIndex == index).toList().map((e) => Positioned(
-                                          top:e.bounds.top * aspectCoefY,
-                                          left: e.bounds.left * aspectCoefX,
-                                          child: Container(
-                                            color: Colors.yellow.withOpacity(0.7),
-                                            width: e.bounds.width * aspectCoefY,
-                                            height: e.bounds.height * aspectCoefX,
-                                      ))).toList(),
-                                      ///показываем, что есть закладка
-                                      if(bookmarks != null)
-                                      ...bookmarks.where((e) => e.page == index).toList().map((v) => Positioned(
-                                        left: v.offset.dx,
-                                        top: v.offset.dy,
-                                        child: SizedBox(
-                                            width: 30,
-                                            height: 30,
-                                            child: Image.asset('assets/pdf_buttons/bookmark_active.png')
+    return FutureBuilder<List<Uint8List>>(
+        future: oldPath == pathPdf ? returnOldList()
+            : loadAssetAll(pathPdf: pathPdf, annotations: annotations, bookmarks: bookmarks, width: width, height: height),
+        builder: (context, snapshot) {
+          if(snapshot.hasData && oldPath != pathPdf){
+            ///блокируем перерисовки
+            lines = List.generate(snapshot.data!.length, (_) => [DrawLineItem(subject: mode.name)]);
+            erasePositions = List.generate(snapshot.data!.length, (_) => []);
+            globalKeys = List.generate(snapshot.data!.length, (_) => GlobalKey());
+            oldListPaths = snapshot.data!;
+            oldPath = pathPdf;
+          }
+          List<Widget> children = snapshot.hasData ? snapshot.data!.map((item) => StatefulBuilder(
+              builder: (BuildContext context, StateSetter setState){
+                ///номер страницы
+                int index = snapshot.data!.indexWhere((e) => e == item);
+                //imageCache.evict(FileImage(File(item)), includeLive: true);
+                return Center(
+                    child:GestureDetector(
+                        onTap: ()=>onTap(index),
+                        onPanStart: (v)=>onPanStart(v, index, setState),
+                        onPanEnd: (v)=>onPanEnd(v, index, setState),
+                        onPanUpdate: (details)=>onPanUpdate(details, index, setState),
+                        child: VisibilityDetector(
+                            key: ValueKey("$index"),
+                            onVisibilityChanged: (VisibilityInfo info)=>onVisibilityChanged(info),
+                            child:RotatedBox(
+                                quarterTurns: rotation,
+                                child: Container(
+                                  //color: Colors.red.withOpacity(0.5),
+                                    width: screenWidth,
+                                    key: globalKeys[index],
+                                    margin: const EdgeInsets.fromLTRB(5, 5, 5, 5),
+                                    child: Stack(
+                                      children: [
+                                        ///поворт блока надо совместить с нарисованными линиями
+                                        Image.memory(
+                                          item,
+                                          width: screenWidth,
+                                          height: screenHeight,
+                                          fit: BoxFit.fitWidth,
                                         ),
-                                      )).toList(),
-                                      ///интегрируется виджет области аннотации
-                                      ...annotations.where((element) =>
-                                      element.page == index)
-                                          .toList().map((e){
-                                            e.aspectCoefX = aspectCoefX;
-                                            e.aspectCoefY = aspectCoefY;
-                                        return e.tapChild;
-                                      })
-                                          .toList(),
-                                      ...lines[index].map((e)=>FingerPaint(line:  e.line, mode: mode == AnnotState.erase ? AnnotState.freeForm : mode, color: e.color, thickness: e.thickness, )).toList(),
-                                      ///указатель ластика
-                                      if(mode == AnnotState.erase && index == visiblyPage) AnnotEraser(eraseRadius: eraseRadius, erasePosition: erasePosition,),
-                                    ],
-                                  )
-                              )
-                          )
-                      )
-                      )
-                  );
-                }
-            )).toList() : [];
-            return !snapshot.hasData
-                ? const Center( child: SizedBox(width: 60, height: 60, child: CircularProgressIndicator()))
-                : ListView(
-                shrinkWrap: true,
-                physics: const ScrollPhysics(),
-                scrollDirection: scrollDirection!,
-                controller: scrollController,
-                children: children
-            );
-          });
-    }
+                                        ///рисуем выделения найденого текста
+                                        ...findedFragments.where((el) => el.pageIndex == index).toList().map((e) => Positioned(
+                                            top:e.bounds.top * aspectCoefY,
+                                            left: e.bounds.left * aspectCoefX,
+                                            child: Container(
+                                              color: Colors.yellow.withOpacity(0.7),
+                                              width: e.bounds.width * aspectCoefY,
+                                              height: e.bounds.height * aspectCoefX,
+                                            ))).toList(),
+                                        ///показываем, что есть закладка
+                                        if(bookmarks != null)
+                                          ...bookmarks.where((e) => e.page == index).toList().map((v) => Positioned(
+                                            left: v.offset.dx,
+                                            top: v.offset.dy,
+                                            child: SizedBox(
+                                                width: 30,
+                                                height: 30,
+                                                child: Image.asset('assets/pdf_buttons/bookmark_active.png')
+                                            ),
+                                          )).toList(),
+                                        ///интегрируется виджет области аннотации
+                                        ...annotations!.where((element) =>
+                                        element.page == index)
+                                            .toList().map((e){
+                                          e.aspectCoefX = aspectCoefX;
+                                          e.aspectCoefY = aspectCoefY;
+                                          return e.tapChild;
+                                        })
+                                            .toList(),
+                                        ...lines[index].map((e)=>FingerPaint(line:  e.line, mode: mode == AnnotState.erase ? AnnotState.freeForm : mode, color: e.color, thickness: e.thickness, )).toList(),
+                                        ///указатель ластика
+                                        if(mode == AnnotState.erase && index == visiblyPage) AnnotEraser(eraseRadius: eraseRadius, erasePosition: erasePosition,),
+                                      ],
+                                    )
+                                )
+                            )
+                        )
+                    )
+                );
+              }
+          )).toList() : [];
+          return !snapshot.hasData
+              ? const Center( child: SizedBox(width: 60, height: 60, child: CircularProgressIndicator()))
+              : ListView(
+              shrinkWrap: true,
+              physics: const ScrollPhysics(),
+              scrollDirection: scrollDirection!,
+              controller: scrollController,
+              children: children
+          );
+        });
+    //}
 
   }
 
-  String commentBody = '';
+
 
   ///диалог ввода комментария в аннотацию
+  @deprecated
   Future<bool>addCommentDialog(context) async {
     bool result = true;
     TextEditingController controller = TextEditingController();
@@ -787,7 +649,7 @@ class LoadPdf{
                               RawMaterialButton(
                                 constraints: constraints,
                                 onPressed: (){
-                                  commentBody = '';
+                                  //commentBody = '';
                                   result = false;
                                   Navigator.of(context).pop();
                                 },
@@ -800,7 +662,7 @@ class LoadPdf{
                               RawMaterialButton(
                                 constraints: constraints,
                                 onPressed: (){
-                                  commentBody = controller.text;
+                                  //commentBody = controller.text;
                                   result = true;
                                   Navigator.of(context).pop();
                                 },
