@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
@@ -29,11 +30,8 @@ Future<String> syficionGetText({required String pathPdf,int? startPage, int? end
   }catch(e){
   bytes = (await File(pathPdf).readAsBytes());
   }
-  //Load an existing PDF document.
   final PdfDocument document = PdfDocument(inputBytes: bytes);
-//Extract the text from all the pages.
-  String text = PdfTextExtractor(document).extractText(endPageIndex: startPage, startPageIndex: endPage,layoutText: false);
-//Dispose the document.
+  String text = PdfTextExtractor(document).extractText(endPageIndex: startPage, startPageIndex: endPage,layoutText: true);
   document.dispose();
   return text;
 }

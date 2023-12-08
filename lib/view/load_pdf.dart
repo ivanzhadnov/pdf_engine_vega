@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:developer';
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:flutter/cupertino.dart';
 import 'package:path/path.dart' as path;
@@ -23,6 +24,7 @@ import '../edit/bookmark_class.dart';
 import '../edit/line_class.dart';
 import '../util/piont_in_circle.dart';
 import 'extract_text/syficion_text_extract.dart';
+
 
 
 
@@ -110,11 +112,25 @@ class LoadPdf{
   }
 
   List<sf.MatchedItem> findedFragments = [];
-  ///поиск текста в документе
-  @override
-  searchText({required int? page, required String searchText}){
-    syficionSearchText(pathPdf: pathDocument, searchString: searchText, startPage: page).then((value) => findedFragments = value);
+
+
+  void test(String string) {
+    Isolate.spawn<String>(heavyTask, string,);
   }
+
+  void heavyTask(String string) async{
+    findedFragments = await syficionSearchText(pathPdf: pathDocument, searchString: string,);
+  }
+
+
+
+  ///поиск текста в документе
+  searchText({required int? page, required String searchText})async{
+    //test(searchText);
+      findedFragments = await syficionSearchText(pathPdf: pathDocument, searchString: searchText, startPage: page);
+  }
+
+
 
   ///получить байты Используется в 4-х местах в проекте
   Future<Uint8List>getBytesFromAsset({required String pathPdf, int ration = 1, String backgroundColor = '#FFFFFFFF', required int page})async{
@@ -276,9 +292,9 @@ class LoadPdf{
       ///циклом собрать массив отрендеренных страниц для отображения
 
       for(int i = 0; i < pageCount; i++){
-        //imageCache.evict(FileImage(File('${directory.path}${Platform.pathSeparator}$fileName$i.jpg')), includeLive: true);
-        //imageCache.clear();
-        //imageCache.clearLiveImages();
+        imageCache.evict(FileImage(File('${directory.path}${Platform.pathSeparator}$fileName$i.jpg')), includeLive: true);
+        imageCache.clear();
+        imageCache.clearLiveImages();
         await document.loadPage(i).
             savePageAsJpg('${directory.path}${Platform.pathSeparator}$fileName$i.jpg', qualityJpg: 100, flags: 1, width: screenWidth.toInt(), height: screenHeight.toInt(),)
             .closePage();
@@ -313,9 +329,9 @@ class LoadPdf{
   ///обрабатываем нажатие по скролл контроллеру
   changePage(int page, setState){
     if(oldListPaths.length > 1){
-      final RenderObject? renderBoxRed = globalKeys[page].currentContext!.findRenderObject();
-      final height = renderBoxRed?.semanticBounds.height;
-      scrollController.jumpTo(height! * page - 30);
+      //final RenderObject? renderBoxRed = globalKeys[page].currentContext!.findRenderObject();
+      //final height = renderBoxRed?.semanticBounds.height;
+      scrollController.jumpTo(screenHeight * page);
       setState();
     }
   }
@@ -478,7 +494,7 @@ class LoadPdf{
             oldListPaths = snapshot.data!;
             oldPath = pathPdf;
           }
-          List<Widget> children = snapshot.hasData ? snapshot.data!.map((item) => StatefulBuilder(
+          List<Widget> children = snapshot.hasData && oldListPaths.isNotEmpty ? snapshot.data!.map((item) => StatefulBuilder(
               builder: (BuildContext context, StateSetter setState){
                 ///номер страницы
                 int index = snapshot.data!.indexWhere((e) => e == item);
@@ -535,8 +551,15 @@ class LoadPdf{
                                           e.aspectCoefX = aspectCoefX;
                                           e.aspectCoefY = aspectCoefY;
                                           return e.tapChild;
-                                        })
-                                            .toList(),
+                                        }).toList(),
+                                        ...annotations.where((element) =>
+                                        element.page == index)
+                                            .toList().map((e){
+                                          e.aspectCoefX = aspectCoefX;
+                                          e.aspectCoefY = aspectCoefY;
+                                          return FingerPaint(line: e.points.map((p) => Offset(p.x * aspectCoefX, p.y * aspectCoefY)).toList(), mode: e.subject == 'selectText' ? AnnotState.selectText : AnnotState.freeForm, color: Color(e.color!.toInt())      , thickness: e.border!.width, );
+                                        }).toList(),
+                                        ///рисуем нарисованную аннотацию как затычку
                                         ...lines[index].map((e)=>FingerPaint(line:  e.line, mode: mode == AnnotState.erase ? AnnotState.freeForm : mode, color: e.color, thickness: e.thickness, )).toList(),
                                         ///указатель ластика
                                         if(mode == AnnotState.erase && index == visiblyPage) AnnotEraser(eraseRadius: eraseRadius, erasePosition: erasePosition,),
@@ -549,9 +572,11 @@ class LoadPdf{
                 );
               }
           )).toList() : [];
-          return !snapshot.hasData
+          return !snapshot.hasData && oldListPaths.isEmpty
               ? const Center( child: SizedBox(width: 60, height: 60, child: CircularProgressIndicator()))
               : ListView(
+              //itemExtent:3,
+              cacheExtent: 3,
               shrinkWrap: true,
               physics: const ScrollPhysics(),
               scrollDirection: scrollDirection!,
@@ -565,124 +590,7 @@ class LoadPdf{
 
 
 
-  ///диалог ввода комментария в аннотацию
-  @deprecated
-  Future<bool>addCommentDialog(context) async {
-    bool result = true;
-    TextEditingController controller = TextEditingController();
-    FocusNode myFocusNode1 = FocusNode();
-    OutlineInputBorder border = const OutlineInputBorder(
-        borderRadius: BorderRadius.all(Radius.circular(7.0)),
-        borderSide: BorderSide(color: Color(0xFF1D2830), width: 2));
-    BoxConstraints constraints = const BoxConstraints(minWidth: 40.0, minHeight: 40.0, maxWidth: 40.0, maxHeight: 40.0);
 
-    await showDialog(
-        context: context,
-        builder: (context) {
-          return StatefulBuilder(
-              builder: (BuildContext context, StateSetter setState) {
-                void _requestFocus1(){
-                  setState(() {
-                    FocusScope.of(context).requestFocus(myFocusNode1);
-                  });
-                }
-                return AlertDialog(
-
-                  backgroundColor: Colors.transparent,
-                  elevation: 0.0,
-                  scrollable: true,
-                  contentPadding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
-                  insetPadding: const EdgeInsets.all(10),
-                  content: Container(
-                    padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
-                    width: 300,
-                    height: 270,
-                    decoration: const BoxDecoration(
-                      color: Colors.grey,
-                      borderRadius: BorderRadius.all(Radius.circular(11.0),),
-                    ),
-                    child: Column(
-                        mainAxisAlignment: MainAxisAlignment.start,
-                        children: <Widget>[
-                          Container(
-                              margin: const EdgeInsets.fromLTRB(0,0,0,0),
-                              padding: const EdgeInsets.fromLTRB(0,0,0,0),
-                              alignment: Alignment.topCenter,
-                              width: MediaQuery.of(context).size.width - 40,
-                              height: 200,
-                              child:TextFormField(
-                                autofocus: true,
-                                maxLines: 15, minLines: 15, expands: false,
-                                maxLength: 1000,
-                                onTap: _requestFocus1,
-                                focusNode: myFocusNode1,
-                                textAlign: TextAlign.left,
-                                enabled: true,
-                                //style: inputTextStyle,
-                                keyboardType: TextInputType.streetAddress,
-                                decoration: InputDecoration(
-                                  contentPadding: const EdgeInsets.only(
-                                      left: 15,
-                                      top: 10,
-                                      bottom: 10
-                                  ),
-                                  counter: SizedBox.shrink(),
-                                  //hintStyle: inputHintTextStyle,
-                                  hintText: "Комментарий",
-                                  border: border,
-                                  focusedBorder: border,
-                                  enabledBorder: border,
-                                  errorBorder: border,
-                                  labelText: 'Комментарий',
-                                  labelStyle: TextStyle(fontSize: 15.0, color: myFocusNode1.hasFocus ? const Color(0xFF1D2830) : Colors.black,fontFamily: 'Inter'),
-                                ),
-                                onChanged: (_){setState(() {
-                                  //postalEmpty = false;
-                                });},
-                                //validator: (value) => postalEmpty ? 'Поле адрес не должно быть пустым' : null,
-                                autovalidateMode: AutovalidateMode.always,
-                                controller: controller,
-                              )),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              RawMaterialButton(
-                                constraints: constraints,
-                                onPressed: (){
-                                  //commentBody = '';
-                                  result = false;
-                                  Navigator.of(context).pop();
-                                },
-                                elevation: 2.0,
-                                fillColor: Colors.indigo,
-                                padding: const EdgeInsets.all(5.0),
-                                shape: const CircleBorder(),
-                                child: const Icon(CupertinoIcons.clear, color: Colors.white,),
-                              ),
-                              RawMaterialButton(
-                                constraints: constraints,
-                                onPressed: (){
-                                  //commentBody = controller.text;
-                                  result = true;
-                                  Navigator.of(context).pop();
-                                },
-                                elevation: 2.0,
-                                fillColor: Colors.indigo,
-                                padding: const EdgeInsets.all(5.0),
-                                shape: const CircleBorder(),
-                                child: const Icon(CupertinoIcons.check_mark, color: Colors.white,),
-                              )
-                            ],
-                          )
-                        ]),
-                  ),
-                );
-              }
-          );
-        }
-    ).then((value) => null);
-    return result;
-  }
 
 
 }
