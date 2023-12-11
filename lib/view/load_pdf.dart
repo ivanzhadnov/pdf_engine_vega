@@ -276,7 +276,7 @@ class LoadPdf{
       try{
         bytes = (await rootBundle.load(_path)).buffer.asUint8List();
       }catch(e){
-        bytes = (await File(_path).readAsBytes());
+        bytes = (File(_path).readAsBytesSync());
       }
       ///получить количество страниц
       final document = pdfium!.loadDocumentFromBytes(bytes);

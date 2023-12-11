@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:isolate';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:syncfusion_flutter_pdf/pdf.dart';
@@ -52,8 +53,28 @@ Future<List<TextLine>> syficionGetTextLines({required String pathPdf, int? start
   return text;
 }
 
+void searchWithThread(List<dynamic> values) {
+  print("Value $values");
+  final SendPort sendPort = values[0];
+  final String filePath = values[1];
+  final String searchText = values[2];
 
-//final Completer _completer = Completer();
+  late Uint8List bytes;
+  //try{
+    //bytes = (await rootBundle.load(filePath)).buffer.asUint8List();
+  //}catch(e){
+  bytes = (File(filePath).readAsBytesSync());
+  //}
+  final PdfDocument document = PdfDocument(inputBytes: bytes);
+
+
+  //final file = File(filePath);
+  //final PdfDocument document = PdfDocument(inputBytes: file.readAsBytesSync());
+  final PdfTextExtractor extractor = PdfTextExtractor(document);
+  final result = extractor.findText([searchText]);
+  sendPort.send(result);
+}
+
 
 ///возвращаем найденый текст, страница, координаты строки
 Future<List<MatchedItem>> syficionSearchText({required String pathPdf, required String searchString, int? startPage, int? endPage})async{
@@ -174,7 +195,7 @@ Future<String> syficionAddAnnotation({required String pathPdf, int? page, List<A
   }
   await file.writeAsBytes(await document.save());
   ///показываем пользователю
-  //print(file.path);
+  print(file.path);
   return file.path;
 }
 
