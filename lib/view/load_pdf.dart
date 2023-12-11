@@ -113,21 +113,12 @@ class LoadPdf{
 
   List<sf.MatchedItem> findedFragments = [];
 
-
-  void test(String string) {
-    Isolate.spawn<String>(heavyTask, string,);
-  }
-
-  void heavyTask(String string) async{
-    findedFragments = await syficionSearchText(pathPdf: pathDocument, searchString: string,);
-  }
-
-
-
   ///поиск текста в документе
-  searchText({required int? page, required String searchText})async{
-    //test(searchText);
-      findedFragments = await syficionSearchText(pathPdf: pathDocument, searchString: searchText, startPage: page);
+  Future<bool> searchText({required int? page, required String searchText})async{
+     await syficionSearchText(pathPdf: pathDocument, searchString: searchText, startPage: page).then((value){
+       findedFragments = value;
+    });
+    return true;
   }
 
 
@@ -292,9 +283,9 @@ class LoadPdf{
       ///циклом собрать массив отрендеренных страниц для отображения
 
       for(int i = 0; i < pageCount; i++){
-        imageCache.evict(FileImage(File('${directory.path}${Platform.pathSeparator}$fileName$i.jpg')), includeLive: true);
-        imageCache.clear();
-        imageCache.clearLiveImages();
+        //imageCache.evict(FileImage(File('${directory.path}${Platform.pathSeparator}$fileName$i.jpg')), includeLive: true);
+        //imageCache.clear();
+        //imageCache.clearLiveImages();
         await document.loadPage(i).
             savePageAsJpg('${directory.path}${Platform.pathSeparator}$fileName$i.jpg', qualityJpg: 100, flags: 1, width: screenWidth.toInt(), height: screenHeight.toInt(),)
             .closePage();
@@ -318,7 +309,7 @@ class LoadPdf{
 
 
   ///индикация активной страницы и перелистывание страниц
-  int visiblyPage = 1;
+  int visiblyPage = 0;
   ScrollController scrollController = ScrollController();
 
   ///возвращаем уже сохраненные картинки с ПДФ для блокировки нежелательной перерисовки
@@ -326,14 +317,16 @@ class LoadPdf{
     return oldListPaths;
   }
 
+
   ///обрабатываем нажатие по скролл контроллеру
   changePage(int page, setState){
     if(oldListPaths.length > 1){
       //final RenderObject? renderBoxRed = globalKeys[page].currentContext!.findRenderObject();
       //final height = renderBoxRed?.semanticBounds.height;
-      scrollController.jumpTo(screenHeight * page);
+      scrollController.jumpTo((screenHeight + 10) * page);
       setState();
     }
+
   }
 
   ///переменные для работы с ластиком
@@ -342,6 +335,10 @@ class LoadPdf{
   List<List<List<Offset>>> erasePositions = [];
   ///формируем разорванные ластиком массивы, после добавим их в основной массив
   List<DrawLineItem> brokenLists = [];
+
+
+  String searchTextString = '';
+
 
 
   ///Загружаем в ListView документ целиком
@@ -474,6 +471,9 @@ class LoadPdf{
         setState((){});
       }
     }
+
+
+
     ///обработка прокрутки страниц и установка номера активной страницы
     void onVisibilityChanged(VisibilityInfo info) {
       visiblyPage = int.parse(info.key.toString().replaceAll('[<\'', '').replaceAll('\'>]', ''));
@@ -493,12 +493,12 @@ class LoadPdf{
             globalKeys = List.generate(snapshot.data!.length, (_) => GlobalKey());
             oldListPaths = snapshot.data!;
             oldPath = pathPdf;
+
           }
           List<Widget> children = snapshot.hasData && oldListPaths.isNotEmpty ? snapshot.data!.map((item) => StatefulBuilder(
               builder: (BuildContext context, StateSetter setState){
                 ///номер страницы
                 int index = snapshot.data!.indexWhere((e) => e == item);
-                //imageCache.evict(FileImage(File(item)), includeLive: true);
                 return Center(
                     child:GestureDetector(
                         onTap: ()=>onTap(index),
@@ -544,6 +544,8 @@ class LoadPdf{
                                                 child: Image.asset('assets/pdf_buttons/bookmark_active.png')
                                             ),
                                           )).toList(),
+                                        ///рисуем нарисованную аннотацию как затычку
+                                        ...lines[index].map((e)=>FingerPaint(line:  e.line, mode: mode == AnnotState.erase ? AnnotState.freeForm : mode, color: e.color, thickness: e.thickness, )).toList(),
                                         ///интегрируется виджет области аннотации
                                         ...annotations!.where((element) =>
                                         element.page == index)
@@ -559,8 +561,6 @@ class LoadPdf{
                                           e.aspectCoefY = aspectCoefY;
                                           return FingerPaint(line: e.points.map((p) => Offset(p.x * aspectCoefX, p.y * aspectCoefY)).toList(), mode: e.subject == 'selectText' ? AnnotState.selectText : AnnotState.freeForm, color: Color(e.color!.toInt())      , thickness: e.border!.width, );
                                         }).toList(),
-                                        ///рисуем нарисованную аннотацию как затычку
-                                        ...lines[index].map((e)=>FingerPaint(line:  e.line, mode: mode == AnnotState.erase ? AnnotState.freeForm : mode, color: e.color, thickness: e.thickness, )).toList(),
                                         ///указатель ластика
                                         if(mode == AnnotState.erase && index == visiblyPage) AnnotEraser(eraseRadius: eraseRadius, erasePosition: erasePosition,),
                                       ],

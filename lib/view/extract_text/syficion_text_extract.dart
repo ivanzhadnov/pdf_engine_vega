@@ -44,11 +44,16 @@ Future<List<TextLine>> syficionGetTextLines({required String pathPdf, int? start
   }catch(e){
     bytes = (await File(pathPdf).readAsBytes());
   }
+
   final PdfDocument document = PdfDocument(inputBytes: bytes);
-  List<TextLine> text = PdfTextExtractor(document).extractTextLines(endPageIndex: startPage, startPageIndex: endPage);
+  List<TextLine> text = PdfTextExtractor(document).extractTextLines(endPageIndex: endPage, startPageIndex: startPage);
+
   document.dispose();
   return text;
 }
+
+
+//final Completer _completer = Completer();
 
 ///возвращаем найденый текст, страница, координаты строки
 Future<List<MatchedItem>> syficionSearchText({required String pathPdf, required String searchString, int? startPage, int? endPage})async{
@@ -59,7 +64,11 @@ Future<List<MatchedItem>> syficionSearchText({required String pathPdf, required 
     bytes = (await File(pathPdf).readAsBytes());
   }
   final PdfDocument document = PdfDocument(inputBytes: bytes);
-  List<MatchedItem> text = PdfTextExtractor(document).findText([searchString],startPageIndex: startPage, endPageIndex: endPage);
+  final extractor = PdfTextExtractor(document);
+  List<MatchedItem> text = [];
+
+    text = text + extractor.findText([searchString],startPageIndex: startPage, endPageIndex: null,);
+
   document.dispose();
   return text;
 }
