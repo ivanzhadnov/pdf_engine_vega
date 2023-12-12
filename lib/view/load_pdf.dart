@@ -18,15 +18,11 @@ import 'package:visibility_detector/visibility_detector.dart';
 import '../edit/annot_buttons.dart';
 import '../edit/annot_painter.dart';
 import '../edit/annotation_class.dart';
-import '../edit/annotation_core.dart';
 
 import '../edit/bookmark_class.dart';
 import '../edit/line_class.dart';
 import '../util/piont_in_circle.dart';
 import 'extract_text/syficion_text_extract.dart';
-
-
-
 
 ///бинарники бибилотек https://github.com/bblanchon/pdfium-binaries
 ///обработка загрузки и конвертации PDF файла под разные ОС и последующее отображение на экране пользователя
@@ -97,29 +93,11 @@ class LoadPdf{
 
   String pathDocument = '';
 
-  ///получить текст из тела документа
-  Future<String>getText({int? page = null})async{
-    String text = await syficionGetText(pathPdf:pathDocument, startPage: page, endPage: page);
-    return text;
-  }
-
-  List<sf.TextLine> textLines = [];
   ///текст строками TextLines
-  Future<List<sf.TextLine>>getTextLines({ required int? page})async{
-    List<sf.TextLine> text = [];
-    await syficionGetTextLines(pathPdf:pathDocument, startPage: page, endPage: page).then((value) => text = value);
-    return text;
-  }
+  List<List<sf.TextLine>> textLines = [];
 
+  ///результат поиска текста в документе
   List<sf.MatchedItem> findedFragments = [];
-
-  ///поиск текста в документе
-  Future<bool> searchText({required int? page, required String searchText})async{
-     await syficionSearchText(pathPdf: pathDocument, searchString: searchText, startPage: page).then((value){
-       findedFragments = value;
-    });
-    return true;
-  }
 
 
 
@@ -262,10 +240,7 @@ class LoadPdf{
           quality: 100,
         );
         final bytes = image!.bytes;
-        //File file = File('${directory.path}${Platform.pathSeparator}$fileName$i.jpg');
-        //file.writeAsBytes(bytes);
         filesPaths.add(bytes);
-
       }
       await pdfDocument.close();
     }
@@ -283,10 +258,7 @@ class LoadPdf{
       ///циклом собрать массив отрендеренных страниц для отображения
 
       for(int i = 0; i < pageCount; i++){
-        //imageCache.evict(FileImage(File('${directory.path}${Platform.pathSeparator}$fileName$i.jpg')), includeLive: true);
-        //imageCache.clear();
-        //imageCache.clearLiveImages();
-        await document.loadPage(i).
+        document.loadPage(i).
             savePageAsJpg('${directory.path}${Platform.pathSeparator}$fileName$i.jpg', qualityJpg: 100, flags: 1, width: screenWidth.toInt(), height: screenHeight.toInt(),)
             .closePage();
         final bytes = await File('${directory.path}${Platform.pathSeparator}$fileName$i.jpg').readAsBytes();
@@ -321,8 +293,6 @@ class LoadPdf{
   ///обрабатываем нажатие по скролл контроллеру
   changePage(int page, setState){
     if(oldListPaths.length > 1){
-      //final RenderObject? renderBoxRed = globalKeys[page].currentContext!.findRenderObject();
-      //final height = renderBoxRed?.semanticBounds.height;
       scrollController.jumpTo((screenHeight + 10) * page);
       setState();
     }
@@ -368,7 +338,6 @@ class LoadPdf{
     void onTap(int index)async{
       ///уточняем номер текущей страницы
       visiblyPage = index;
-      textLines = await getTextLines(page: visiblyPage);
       try{
         func();
       }catch(e){}
@@ -420,8 +389,8 @@ class LoadPdf{
           y = current.dy > 0 ? maxHeight - 10 : 0;
         }
         if(mode == AnnotState.selectText){
-          if(textLines.isNotEmpty){
-            final calculated = textLines.where((el) => current.dy.clamp(el.bounds.top * aspectCoefY, el.bounds.bottom * aspectCoefY) == current.dy).toList();
+          if(textLines[visiblyPage].isNotEmpty){
+            final calculated = textLines[visiblyPage].where((el) => current.dy.clamp(el.bounds.top * aspectCoefY, el.bounds.bottom * aspectCoefY) == current.dy).toList();
             ///рисуем прямую при условии, что есть текст
             if(calculated.isNotEmpty){
               if(yLine == -1){
@@ -546,20 +515,21 @@ class LoadPdf{
                                           )).toList(),
                                         ///рисуем нарисованную аннотацию как затычку
                                         ...lines[index].map((e)=>FingerPaint(line:  e.line, mode: mode == AnnotState.erase ? AnnotState.freeForm : mode, color: e.color, thickness: e.thickness, )).toList(),
-                                        ///интегрируется виджет области аннотации
+
                                         ...annotations!.where((element) =>
                                         element.page == index)
                                             .toList().map((e){
                                           e.aspectCoefX = aspectCoefX;
                                           e.aspectCoefY = aspectCoefY;
-                                          return e.tapChild;
+                                          return FingerPaint(line: e.points.map((p) => Offset(p.x * aspectCoefX, p.y * aspectCoefY)).toList(), mode: e.subject == 'selectText' ? AnnotState.selectText : AnnotState.freeForm, color: Color(e.color!.toInt())      , thickness: e.border!.width, );
                                         }).toList(),
+                                        ///интегрируется виджет области аннотации
                                         ...annotations.where((element) =>
                                         element.page == index)
                                             .toList().map((e){
                                           e.aspectCoefX = aspectCoefX;
                                           e.aspectCoefY = aspectCoefY;
-                                          return FingerPaint(line: e.points.map((p) => Offset(p.x * aspectCoefX, p.y * aspectCoefY)).toList(), mode: e.subject == 'selectText' ? AnnotState.selectText : AnnotState.freeForm, color: Color(e.color!.toInt())      , thickness: e.border!.width, );
+                                          return e.tapChild;
                                         }).toList(),
                                         ///указатель ластика
                                         if(mode == AnnotState.erase && index == visiblyPage) AnnotEraser(eraseRadius: eraseRadius, erasePosition: erasePosition,),

@@ -53,25 +53,34 @@ Future<List<TextLine>> syficionGetTextLines({required String pathPdf, int? start
   return text;
 }
 
-void searchWithThread(List<dynamic> values) {
-  print("Value $values");
+///получить линии текста из документа для последующего выделения и отображения в оглавлении документа
+void getTextLines(List<dynamic> values){
+  final SendPort sendPort = values[0];
+  final String filePath = values[1];
+  final int page = values[2];
+
+  late Uint8List bytes;
+  bytes = (File(filePath).readAsBytesSync());
+
+  final PdfDocument document = PdfDocument(inputBytes: bytes);
+  final PdfTextExtractor extractor = PdfTextExtractor(document);
+  final result = extractor.extractTextLines(startPageIndex: page);
+  sendPort.send(result);
+}
+
+///поиск вхождения текста в документ
+void searchText(List<dynamic> values) async{
   final SendPort sendPort = values[0];
   final String filePath = values[1];
   final String searchText = values[2];
+  final int page = values[3];
 
   late Uint8List bytes;
-  //try{
-    //bytes = (await rootBundle.load(filePath)).buffer.asUint8List();
-  //}catch(e){
   bytes = (File(filePath).readAsBytesSync());
-  //}
+
   final PdfDocument document = PdfDocument(inputBytes: bytes);
-
-
-  //final file = File(filePath);
-  //final PdfDocument document = PdfDocument(inputBytes: file.readAsBytesSync());
   final PdfTextExtractor extractor = PdfTextExtractor(document);
-  final result = extractor.findText([searchText]);
+  final result = extractor.findText([searchText], startPageIndex: page);
   sendPort.send(result);
 }
 

@@ -53,7 +53,10 @@ class AnnotationItem{
   double aspectCoefY = 1;
   double aspectCoefX = 1;
 
-
+Material.Widget? tap = Material.Icon(CupertinoIcons.square_pencil, color: Material.Colors.black);
+Function tapFunction = (){
+  print(666);
+};
 
   AnnotationItem({
     required this.page,
@@ -234,20 +237,25 @@ class AnnotationItem{
       return Material.Positioned(
         top: (top * aspectCoefY) - border!.width,
         left: left * aspectCoefX,
-        child: Material.GestureDetector(
+        child: /*Material.GestureDetector(
           onTap: (){
             setState((){
               widgetTaped = !widgetTaped;
             });
             showCommentDialog(context,);
           },
-          child: Material.Container(
+          child: */Material.Container(
             height: subject == 'selectText' ? border!.width * 2 : height * aspectCoefX,
             width: width * aspectCoefX,
             //color: widgetTaped ? Material.Colors.red.withOpacity(0.5) : Material.Colors.green.withOpacity(0.5)
-            color: Material.Colors.transparent
+            alignment: Material.Alignment.topLeft,
+            color: Material.Colors.transparent,
+              child: points.isNotEmpty && subject == 'selectText' ? Material.GestureDetector(
+                onTap: tapFunction(),
+                child: tap,
+          ) : null,
           ),
-        ),
+       // ),
       );
     });
   }
@@ -278,133 +286,6 @@ class AnnotationItem{
     "subject": subject,
     "points": points.map((e) => {'x' : e.x, 'y': e.y}).toList(),
   };
-
-  ///диалог ввода комментария в аннотацию
-  Future<bool>showCommentDialog(context, ) async {
-    bool result = true;
-    Material.TextEditingController controller = Material.TextEditingController(text: content);
-    Material.FocusNode myFocusNode1 = Material.FocusNode();
-    Material.OutlineInputBorder border = const Material.OutlineInputBorder(
-        borderRadius: Material.BorderRadius.all(Material.Radius.circular(7.0)),
-        borderSide: Material.BorderSide(color: Material.Color(0xFF1D2830), width: 2));
-    Material.BoxConstraints constraints = const Material.BoxConstraints(minWidth: 40.0, minHeight: 40.0, maxWidth: 40.0, maxHeight: 40.0);
-
-    await Material.showDialog(
-        context: context,
-        builder: (context) {
-          return Material.StatefulBuilder(
-              builder: (Material.BuildContext context, Material.StateSetter setState) {
-                void _requestFocus1(){
-                  setState(() {
-                    Material.FocusScope.of(context).requestFocus(myFocusNode1);
-                  });
-                }
-                return Material.AlertDialog(
-
-                  backgroundColor: Material.Colors.transparent,
-                  elevation: 0.0,
-                  scrollable: true,
-                  contentPadding: const Material.EdgeInsets.fromLTRB(10, 10, 10, 10),
-                  insetPadding: const Material.EdgeInsets.all(10),
-                  content: Material.Container(
-                    padding: const Material.EdgeInsets.fromLTRB(10, 10, 10, 10),
-                    width: 300,
-                    height: 270,
-                    decoration: const Material.BoxDecoration(
-                      color: Material.Colors.grey,
-                      borderRadius: Material.BorderRadius.all(Material.Radius.circular(11.0),),
-                    ),
-                    child: Material.Column(
-                        mainAxisAlignment: Material.MainAxisAlignment.start,
-                        children: [
-                          Material.Container(
-                              margin: const Material.EdgeInsets.fromLTRB(0,0,0,0),
-                              padding: const Material.EdgeInsets.fromLTRB(0,0,0,0),
-                              alignment: Material.Alignment.topCenter,
-                              width: Material.MediaQuery.of(context).size.width - 40,
-                              height: 200,
-                              child:Material.TextFormField(
-                                autofocus: true,
-                                maxLines: 15, minLines: 15, expands: false,
-                                maxLength: 1000,
-                                onTap: _requestFocus1,
-                                focusNode: myFocusNode1,
-                                textAlign: Material.TextAlign.left,
-                                enabled: true,
-                                keyboardType: Material.TextInputType.streetAddress,
-                                decoration: Material.InputDecoration(
-                                  contentPadding: const Material.EdgeInsets.only(
-                                      left: 15,
-                                      top: 10,
-                                      bottom: 10
-                                  ),
-                                  counter: Material.SizedBox.shrink(),
-                                  hintText: "Комментарий",
-                                  border: border,
-                                  focusedBorder: border,
-                                  enabledBorder: border,
-                                  errorBorder: border,
-                                  labelText: 'Комментарий',
-                                  labelStyle: Material.TextStyle(fontSize: 15.0, color: myFocusNode1.hasFocus ? const Color(0xFF1D2830) : Material.Colors.black,fontFamily: 'Inter'),
-                                ),
-                                onChanged: (_){setState(() {});},
-                                autovalidateMode: Material.AutovalidateMode.always,
-                                controller: controller,
-                              )),
-                          Material.Row(
-                            mainAxisAlignment: Material.MainAxisAlignment.center,
-                            children: [
-                              Material.RawMaterialButton(
-                                constraints: constraints,
-                                onPressed: (){
-                                  content = '';
-                                  result = false;
-                                  Navigator.of(context).pop();
-                                },
-                                elevation: 2.0,
-                                fillColor: Material.Colors.indigo,
-                                padding: const Material.EdgeInsets.all(5.0),
-                                shape: const CircleBorder(),
-                                child: const Material.Icon(CupertinoIcons.trash, color: Material.Colors.red,),
-                              ),
-                              Material.RawMaterialButton(
-                                constraints: constraints,
-                                onPressed: (){
-
-                                  content = '';
-                                  result = false;
-                                  Navigator.of(context).pop();
-                                },
-                                elevation: 2.0,
-                                fillColor: Material.Colors.indigo,
-                                padding: const Material.EdgeInsets.all(5.0),
-                                shape: const CircleBorder(),
-                                child: const Material.Icon(CupertinoIcons.clear, color: Material.Colors.white,),
-                              ),
-                              Material.RawMaterialButton(
-                                constraints: constraints,
-                                onPressed: (){
-                                  content = controller.text;
-                                  result = true;
-                                  Material.Navigator.of(context).pop();
-                                },
-                                elevation: 2.0,
-                                fillColor: Material.Colors.indigo,
-                                padding: const Material.EdgeInsets.all(5.0),
-                                shape: const Material.CircleBorder(),
-                                child: const Material.Icon(CupertinoIcons.check_mark, color: Material.Colors.white,),
-                              )
-                            ],
-                          )
-                        ]),
-                  ),
-                );
-              }
-          );
-        }
-    ).then((value) => null);
-    return result;
-  }
 
   ///конвертировать Offset в PdfPoint
   List<PdfPoint> convertPointsType(List<Offset> points){
