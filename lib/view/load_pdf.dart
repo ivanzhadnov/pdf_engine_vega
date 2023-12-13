@@ -1,11 +1,8 @@
 import 'dart:async';
 import 'dart:developer';
 import 'dart:io';
-import 'dart:isolate';
 
-import 'package:flutter/cupertino.dart';
 import 'package:path/path.dart' as path;
-import 'package:pdf_engine_vega/view/view_ios.dart';
 import 'package:pdf_engine_vega/view/widgets/annot_eraser.dart';
 import 'package:pdfium_bindings/pdfium_bindings.dart';
 import 'package:flutter/services.dart';
@@ -21,6 +18,7 @@ import '../edit/annotation_class.dart';
 
 import '../edit/bookmark_class.dart';
 import '../edit/line_class.dart';
+import '../util/current_system_info.dart';
 import '../util/piont_in_circle.dart';
 import 'extract_text/syficion_text_extract.dart';
 
@@ -34,9 +32,17 @@ class LoadPdf{
 
   }
 
+
+
+
+
   PdfiumWrap? pdfium;
   ///set pdfium
   Future<bool>setPdfium()async{
+
+    ///получаем данные об установленой ОС, архитектуре процессора, разрядности процессора
+    CurrentSystemInformation sysInfo = CurrentSystemInformation();
+
     try{
       if(!Platform.isMacOS)pdfium!.dispose();
     }catch(e){}
@@ -44,11 +50,15 @@ class LoadPdf{
     String libraryPath = '';
     final directory = await getApplicationDocumentsDirectory();
     if(Platform.isAndroid){
+      String libAsset = 'assets/libpdf/libpdfium_android.so';
+      if(sysInfo.kernelBitness == 32){
+        libAsset = 'assets/libpdf/libpdfium_android_32.so';
+      }
       final String localPath = directory.path;
       File file = File(localPath + '/libpdfium_android.so');
       bool exist = await file.exists();
       if(!exist){
-        final asset = await rootBundle.load('assets/libpdf/libpdfium_android.so');
+        final asset = await rootBundle.load(libAsset);
         final buffer = asset.buffer;
         await file.writeAsBytes(buffer.asUint8List(asset.offsetInBytes, asset.lengthInBytes));
       }
@@ -180,13 +190,21 @@ class LoadPdf{
     PdfiumWrap document = pdfium!.loadDocumentFromBytes(bytes);
     int pageCount = document.getPageCount();
     for(int i = 0; i < pageCount; i++){
+      ///получаем исходные размеры документа, чтоб потом подстраивать рисование
+      bornDocSize = await syficionGrtSize(pathPdf: pathPdf, page: i);
+      aspectRatioDoc = bornDocSize.aspectRatio;
+      screenWidth = bornDocSize.width;
+      screenHeight = bornDocSize.width / aspectRatioDoc;
+      aspectCoefX = bornDocSize.width / bornDocSize.width;
+      aspectCoefY = screenHeight / bornDocSize.height;
+
       String fileName = 'render';
       imageCache.evict(FileImage(File('${directory.path}${Platform.pathSeparator}$fileName$i.jpg')), includeLive: true);
       imageCache.clear();
       imageCache.clearLiveImages();
       document.loadPage(i)
       //.renderPageAsBytes(300, 400, /*backgroundColor:  int.parse(backgroundColor, radix: 16),*/ flags: 1);
-          .savePageAsJpg('${directory.path}${Platform.pathSeparator}$fileName$i.jpg', qualityJpg: 100, flags: 1,/* width: _width, height: _height,*/)
+          .savePageAsJpg('${directory.path}${Platform.pathSeparator}$fileName$i.jpg', qualityJpg: 100, flags: 1, width: screenWidth.toInt(), height: screenHeight.toInt(),)
           .closePage();
       result.add(
           !Platform.isAndroid && !Platform.isWindows ? Image.asset('${directory.path}${Platform.pathSeparator}$fileName$i.jpg')
