@@ -35,7 +35,7 @@ class LoadPdf{
   Future<bool>setPdfium()async{
 
     ///получаем данные об установленой ОС, архитектуре процессора, разрядности процессора
-    CurrentSystemInformation sysInfo = CurrentSystemInformation();
+    CurrentSystemInformation? sysInfo = Platform.isIOS || Platform.isWindows ? null : CurrentSystemInformation();
 
     try{
       if(!Platform.isMacOS)pdfium!.dispose();
@@ -45,7 +45,7 @@ class LoadPdf{
     final directory = await getApplicationDocumentsDirectory();
     if(Platform.isAndroid){
       String libAsset = 'assets/libpdf/libpdfium_android.so';
-      if(sysInfo.kernelBitness == 32){
+      if(sysInfo!.kernelBitness == 32){
         if(sysInfo.kernelArchitecture == ProcessorArchitecture.x86){
           libAsset = 'assets/libpdf/libpdfium_android_32_x86.so';
         }else{
