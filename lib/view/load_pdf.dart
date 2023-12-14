@@ -10,6 +10,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:pdfx/pdfx.dart';
 import 'package:syncfusion_flutter_pdf/pdf.dart' as sf;
+import 'package:system_info2/system_info2.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
 import '../edit/annot_buttons.dart';
@@ -27,14 +28,7 @@ import 'extract_text/syficion_text_extract.dart';
 ///обработка отображения и добавления аннотирования в документ
 class LoadPdf{
 
-  LoadPdf(){
-    setPdfium();
-
-  }
-
-
-
-
+  LoadPdf(){setPdfium();}
 
   PdfiumWrap? pdfium;
   ///set pdfium
@@ -52,10 +46,15 @@ class LoadPdf{
     if(Platform.isAndroid){
       String libAsset = 'assets/libpdf/libpdfium_android.so';
       if(sysInfo.kernelBitness == 32){
-        libAsset = 'assets/libpdf/libpdfium_android_32.so';
+        if(sysInfo.kernelArchitecture == ProcessorArchitecture.x86){
+          libAsset = 'assets/libpdf/libpdfium_android_32_x86.so';
+        }else{
+          libAsset = 'assets/libpdf/libpdfium_android_32.so';
+        }
+
       }
       final String localPath = directory.path;
-      File file = File(localPath + '/libpdfium_android.so');
+      File file = File('$localPath/libpdfium_android.so');
       bool exist = await file.exists();
       if(!exist){
         final asset = await rootBundle.load(libAsset);
