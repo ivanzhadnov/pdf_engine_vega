@@ -10,7 +10,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:pdfx/pdfx.dart';
 import 'package:syncfusion_flutter_pdf/pdf.dart' as sf;
-import 'package:system_info2/system_info2.dart';
+//import 'package:system_info2/system_info2.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
 import '../edit/annot_buttons.dart';
@@ -52,7 +52,7 @@ class LoadPdf{
       //     libAsset = 'assets/libpdf/libpdfium_android_32.so';
       //   }
 
-      }
+      //}
       final String localPath = directory.path;
       File file = File('$localPath/libpdfium_android.so');
       bool exist = await file.exists();
