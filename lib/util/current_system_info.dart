@@ -1,3 +1,6 @@
+
+
+import 'dart:io';
 import 'package:system_info2/system_info2.dart';
 
 ///класс данных о характеристиках устройства пользователя
@@ -13,7 +16,7 @@ class CurrentSystemInformation{
   int megaByte = 1024 * 1024;
 
   CurrentSystemInformation(){
-    getSysInfo();
+    if (!(Platform.isIOS || Platform.isWindows)) getSysInfo();
   }
 
   bool getSysInfo(){
@@ -39,20 +42,16 @@ class CurrentSystemInformation{
     //print('User space bitness      : ${SysInfo.userSpaceBitness}');
     final cores = SysInfo.cores;
     print('Number of core    : ${cores.length}');
-    for (final core in cores) {
-      print('  Architecture          : ${core.architecture}');
-      print('  Name                  : ${core.name}');
-      print('  Socket                : ${core.socket}');
-      print('  Vendor                : ${core.vendor}');
-    }
-    print('Total physical memory   '
-        ': ${SysInfo.getTotalPhysicalMemory() ~/ megaByte} MB');
-    print('Free physical memory    '
-        ': ${SysInfo.getFreePhysicalMemory() ~/ megaByte} MB');
-    print('Total virtual memory    '
-        ': ${SysInfo.getTotalVirtualMemory() ~/ megaByte} MB');
-    print('Free virtual memory     '
-        ': ${SysInfo.getFreeVirtualMemory() ~/ megaByte} MB');
+    // for (final core in cores) {
+    //   print('  Architecture          : ${core.architecture}');
+    //   print('  Name                  : ${core.name}');
+    //   print('  Socket                : ${core.socket}');
+    //   print('  Vendor                : ${core.vendor}');
+    // }
+    //print('Total physical memory   '': ${SysInfo.getTotalPhysicalMemory() ~/ megaByte} MB');
+    //print('Free physical memory    '': ${SysInfo.getFreePhysicalMemory() ~/ megaByte} MB');
+    //print('Total virtual memory    '': ${SysInfo.getTotalVirtualMemory() ~/ megaByte} MB');
+    //print('Free virtual memory     '': ${SysInfo.getFreeVirtualMemory() ~/ megaByte} MB');
     //print('Virtual memory size     '
     //   ': ${SysInfo.getVirtualMemorySize() ~/ megaByte} MB');
 
