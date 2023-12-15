@@ -10,7 +10,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:pdfx/pdfx.dart';
 import 'package:syncfusion_flutter_pdf/pdf.dart' as sf;
-//import 'package:system_info2/system_info2.dart';
+import 'package:system_info2/system_info2.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
 import '../edit/annot_buttons.dart';
@@ -35,7 +35,7 @@ class LoadPdf{
   Future<bool>setPdfium()async{
 
     ///получаем данные об установленой ОС, архитектуре процессора, разрядности процессора
-    //CurrentSystemInformation? sysInfo = Platform.isIOS || Platform.isWindows ? null : CurrentSystemInformation();
+    CurrentSystemInformation? sysInfo = Platform.isIOS || Platform.isWindows ? null : CurrentSystemInformation();
 
     try{
       if(!Platform.isMacOS)pdfium!.dispose();

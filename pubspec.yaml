@@ -1,7 +1,10 @@
 name: pdf_engine_vega
 description: Плагин для В небо с возможностью создания, редактирования и отображения PDF файлов
-version: 0.0.38
+version: 0.0.39
 homepage: https://koldashev.ru
+
+
+
 
 environment:
   sdk: '>=3.1.2 <4.0.0'
@@ -14,7 +17,7 @@ dependencies:
   pdfium_bindings: ^2.0.1
   path: ^1.8.2
   path_provider: ^2.1.1
-  #system_info2: ^4.0.0
+  system_info2: ^4.0.0
   visibility_detector: ^0.4.0+2
   syncfusion_flutter_pdf: ^23.2.6
   #https://pub.dev/packages/pdf_text_extraction нужны библиотеки под макось андроид и иос
@@ -37,6 +40,18 @@ dev_dependencies:
 
 # The following section is specific to Flutter packages.
 flutter:
+  plugin:
+    platforms:
+      ios:
+        pluginClass: not_system_info2
+      android:
+        default_package: system_info2
+      windows:
+        pluginClass: not_system_info2
+      linux:
+        default_package: system_info2
+      macos:
+        default_package: system_info2
   uses-material-design: true
   # To add assets to your package, add an assets section, like this:
   # assets:
