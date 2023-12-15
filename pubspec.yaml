@@ -1,6 +1,6 @@
 name: pdf_engine_vega
 description: Плагин для В небо с возможностью создания, редактирования и отображения PDF файлов
-version: 0.0.39
+version: 0.0.40
 homepage: https://koldashev.ru
 
 
@@ -42,12 +42,10 @@ dev_dependencies:
 flutter:
   plugin:
     platforms:
-      ios:
-        pluginClass: not_system_info2
+
       android:
         default_package: system_info2
-      windows:
-        pluginClass: not_system_info2
+
       linux:
         default_package: system_info2
       macos:
