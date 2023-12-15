@@ -1,6 +1,6 @@
 name: pdf_engine_vega
 description: Плагин для В небо с возможностью создания, редактирования и отображения PDF файлов
-version: 0.0.40
+version: 0.0.41
 homepage: https://koldashev.ru
 
 
@@ -40,16 +40,16 @@ dev_dependencies:
 
 # The following section is specific to Flutter packages.
 flutter:
-  plugin:
-    platforms:
+ # plugin:
+ #   platforms:
 
-      android:
-        default_package: system_info2
+ #     android:
+ #       default_package: system_info2
 
-      linux:
-        default_package: system_info2
-      macos:
-        default_package: system_info2
+ #     linux:
+ #       default_package: system_info2
+ #     macos:
+ #       default_package: system_info2
   uses-material-design: true
   # To add assets to your package, add an assets section, like this:
   # assets:

@@ -45,14 +45,14 @@ class LoadPdf{
     final directory = await getApplicationDocumentsDirectory();
     if(Platform.isAndroid){
       String libAsset = 'assets/libpdf/libpdfium_android.so';
-      // if(sysInfo!.kernelBitness == 32){
-      //   if(sysInfo.kernelArchitecture == ProcessorArchitecture.x86){
-      //     libAsset = 'assets/libpdf/libpdfium_android_32_x86.so';
-      //   }else{
-      //     libAsset = 'assets/libpdf/libpdfium_android_32.so';
-      //   }
+      if(sysInfo!.kernelBitness == 32){
+        if(sysInfo.kernelArchitecture == ProcessorArchitecture.x86){
+          libAsset = 'assets/libpdf/libpdfium_android_32_x86.so';
+        }else{
+          libAsset = 'assets/libpdf/libpdfium_android_32.so';
+        }
 
-      //}
+      }
       final String localPath = directory.path;
       File file = File('$localPath/libpdfium_android.so');
       bool exist = await file.exists();
