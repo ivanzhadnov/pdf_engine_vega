@@ -35,7 +35,9 @@ class LoadPdf{
   Future<bool>setPdfium()async{
 
     ///получаем данные об установленой ОС, архитектуре процессора, разрядности процессора
-    CurrentSystemInformation? sysInfo = Platform.isIOS || Platform.isWindows ? null : CurrentSystemInformation();
+    //CurrentSystemInformation? sysInfo = Platform.isIOS || Platform.isWindows ? null : CurrentSystemInformation();
+    CurrentSystemInformation? sysInfo;
+    if (!(Platform.isIOS || Platform.isWindows)) sysInfo = CurrentSystemInformation();
 
     try{
       if(!Platform.isMacOS)pdfium!.dispose();
