@@ -266,8 +266,8 @@ class LoadPdf{
     ///размеры экрана
     double? width,
     double? height,
-    int? zoom,
-    //required bool fullscreen
+    //int? zoom,
+    required bool fullscreen
   }){
     imageCache.clear();
     imageCache.clearLiveImages();
@@ -388,7 +388,7 @@ class LoadPdf{
 
     return FutureBuilder<List<Uint8List>>(
         future: oldPath == pathPdf ? returnOldList()
-            : loadAssetAll(pathPdf: pathPdf, annotations: annotations, bookmarks: bookmarks, width: width, height: height, zoom: zoom ?? 1),
+            : loadAssetAll(pathPdf: pathPdf, annotations: annotations, bookmarks: bookmarks, width: width, height: height, zoom: fullscreen ? 3 : 1),
         builder: (context, snapshot) {
           if(snapshot.hasData && oldPath != pathPdf){
             ///блокируем перерисовки
@@ -416,7 +416,8 @@ class LoadPdf{
                                 quarterTurns: rotation,
                                 child: Container(
                                   //color: Colors.red.withOpacity(0.5),
-                                    width: screenWidth * (zoom ?? 1),
+                                    //width: screenWidth,
+                                    //height: screenHeight,
                                     key: globalKeys[index],
                                     margin: const EdgeInsets.fromLTRB(5, 5, 5, 5),
                                     child: Stack(
@@ -424,8 +425,8 @@ class LoadPdf{
                                         ///поворт блока надо совместить с нарисованными линиями
                                         Image.memory(
                                           item,
-                                          width: screenWidth * (zoom ?? 3),
-                                          height: screenHeight * (zoom ?? 3),
+                                          width: screenWidth,
+                                          height: screenHeight,
                                           fit: BoxFit.fitWidth,
                                         ),
                                         ///рисуем выделения найденого текста
@@ -455,7 +456,7 @@ class LoadPdf{
                                             .toList().map((e){
                                           e.aspectCoefX = aspectCoefX;
                                           e.aspectCoefY = aspectCoefY;
-                                          return FingerPaint(line: e.points.map((p) => Offset(p.x * aspectCoefX, p.y * aspectCoefY)).toList(), mode: e.subject == 'selectText' ? AnnotState.selectText : AnnotState.freeForm, color: Color(e.color!.toInt())      , thickness: e.border!.width, );
+                                          return FingerPaint(line: e.points.map((p) => Offset(p.x  * aspectCoefX, p.y  * aspectCoefY)).toList(), mode: e.subject == 'selectText' ? AnnotState.selectText : AnnotState.freeForm, color: Color(e.color!.toInt())      , thickness: e.border!.width, );
                                         }).toList(),
                                         ///интегрируется виджет области аннотации
                                         ...annotations.where((element) =>
