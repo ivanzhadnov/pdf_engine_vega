@@ -115,7 +115,7 @@ class LoadPdf{
     double? width,
     double? height,
     int? page,
-    required int zoom
+    int? zoom
   }) async {
     String _path = pathPdf;
     ///получаем исходные размеры документа, чтоб потом подстраивать рисование
@@ -140,8 +140,8 @@ class LoadPdf{
       if(page == null){
         for (int i = 1; i <= pageCount; i++) {
           final pdfPage = await pdfDocument.getPage(i);
-          final pdfWidth = screenWidth * zoom;
-          final pdfHeight = screenHeight * zoom;
+          final pdfWidth = screenWidth * (zoom ?? 3);
+          final pdfHeight = screenHeight * (zoom ?? 3);
           final image = await pdfPage.render(
             width: pdfWidth,
             height: pdfHeight,
@@ -154,8 +154,8 @@ class LoadPdf{
         }
       }else{
           final pdfPage = await pdfDocument.getPage(page + 1);
-          final pdfWidth = screenWidth * zoom;
-          final pdfHeight = screenHeight * zoom;
+          final pdfWidth = screenWidth * (zoom ?? 3);
+          final pdfHeight = screenHeight * (zoom ?? 3);
           final image = await pdfPage.render(
             width: pdfWidth,
             height: pdfHeight,
@@ -185,8 +185,8 @@ class LoadPdf{
       if(page == null){
         List<int> rotation = await getPageRotation(pathPdf: pathPdf,);
         for(int i = 0; i < pageCount; i++){
-          int realWidth = rotation[i] == 0 || rotation[i] == 2 ? screenWidth.toInt() * zoom : screenHeight.toInt() * zoom;
-          int realHeight = rotation[i] != 0 && rotation[i] != 2 ? screenWidth.toInt() * zoom : screenHeight.toInt() * zoom;
+          int realWidth = rotation[i] == 0 || rotation[i] == 2 ? screenWidth.toInt() * (zoom ?? 3) : screenHeight.toInt() * (zoom ?? 3);
+          int realHeight = rotation[i] != 0 && rotation[i] != 2 ? screenWidth.toInt() * (zoom ?? 3) : screenHeight.toInt() * (zoom ?? 3);
           document.loadPage(i).
           savePageAsJpg('${directory.path}${Platform.pathSeparator}$fileName$i.jpg', qualityJpg: 100, flags: 1, width: realWidth, height: realHeight,)
               .closePage();
@@ -195,8 +195,8 @@ class LoadPdf{
         }
       }else{
         List<int> rotation = await getPageRotation(pathPdf: pathPdf, page: page);
-        int realWidth = rotation.first == 0 || rotation.first == 2 ? screenWidth.toInt() * zoom : screenHeight.toInt() * zoom;
-        int realHeight = rotation.first != 0 && rotation.first != 2 ? screenWidth.toInt() * zoom : screenHeight.toInt() * zoom;
+        int realWidth = rotation.first == 0 || rotation.first == 2 ? screenWidth.toInt() * (zoom ?? 3) : screenHeight.toInt() * (zoom ?? 3);
+        int realHeight = rotation.first != 0 && rotation.first != 2 ? screenWidth.toInt() * (zoom ?? 3) : screenHeight.toInt() * (zoom ?? 3);
         document.loadPage(page).
         savePageAsJpg('${directory.path}${Platform.pathSeparator}$fileName$page.jpg', qualityJpg: 100, flags: 1, width: realWidth, height: realHeight,)
             .closePage();
@@ -266,7 +266,8 @@ class LoadPdf{
     ///размеры экрана
     double? width,
     double? height,
-    int? zoom
+    int? zoom,
+    //required bool fullscreen
   }){
     imageCache.clear();
     imageCache.clearLiveImages();
@@ -423,8 +424,8 @@ class LoadPdf{
                                         ///поворт блока надо совместить с нарисованными линиями
                                         Image.memory(
                                           item,
-                                          width: screenWidth * (zoom ?? 1),
-                                          height: screenHeight * (zoom ?? 1),
+                                          width: screenWidth * (zoom ?? 3),
+                                          height: screenHeight * (zoom ?? 3),
                                           fit: BoxFit.fitWidth,
                                         ),
                                         ///рисуем выделения найденого текста
