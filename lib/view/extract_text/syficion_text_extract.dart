@@ -7,9 +7,10 @@ import 'package:syncfusion_flutter_pdf/pdf.dart';
 
 import '../../edit/annotation_class.dart';
 import '../../edit/bookmark_class.dart';
+import '../../util/mached_item_class.dart';
 
 ///получить количество страниц в документе
-Future<int> syficionGetPageCount({required String pathPdf})async{
+Future<int> getPagesCount({required String pathPdf})async{
   int count = 0;
   late Uint8List bytes;
   try{
@@ -23,35 +24,6 @@ Future<int> syficionGetPageCount({required String pathPdf})async{
   return count;
 }
 
-///получить текст из тела документа
-Future<String> syficionGetText({required String pathPdf,int? startPage, int? endPage})async{
-  late Uint8List bytes;
-  try{
-    bytes = (await rootBundle.load(pathPdf)).buffer.asUint8List();
-  }catch(e){
-  bytes = (await File(pathPdf).readAsBytes());
-  }
-  final PdfDocument document = PdfDocument(inputBytes: bytes);
-  String text = PdfTextExtractor(document).extractText(endPageIndex: startPage, startPageIndex: endPage,layoutText: true);
-  document.dispose();
-  return text;
-}
-
-///текст строками TextLines на странице
-Future<List<TextLine>> syficionGetTextLines({required String pathPdf, int? startPage, int? endPage})async{
-  late Uint8List bytes;
-  try{
-    bytes = (await rootBundle.load(pathPdf)).buffer.asUint8List();
-  }catch(e){
-    bytes = (await File(pathPdf).readAsBytes());
-  }
-
-  final PdfDocument document = PdfDocument(inputBytes: bytes);
-  List<TextLine> text = PdfTextExtractor(document).extractTextLines(endPageIndex: endPage, startPageIndex: startPage);
-
-  document.dispose();
-  return text;
-}
 
 ///получить линии текста из документа для последующего выделения и отображения в оглавлении документа
 void getTextLines(List<dynamic> values){
@@ -68,59 +40,64 @@ void getTextLines(List<dynamic> values){
   sendPort.send(result);
 }
 
-///поиск вхождения текста в документ
-void searchText(List<dynamic> values) async{
-  final SendPort sendPort = values[0];
-  final String filePath = values[1];
-  final String searchText = values[2];
-  final int page = values[3];
-
-  late Uint8List bytes;
-  bytes = (File(filePath).readAsBytesSync());
-
-  final PdfDocument document = PdfDocument(inputBytes: bytes);
-  final PdfTextExtractor extractor = PdfTextExtractor(document);
-  final result = extractor.findText([searchText], startPageIndex: page);
-  sendPort.send(result);
-}
 
 
-///возвращаем найденый текст, страница, координаты строки
-Future<List<MatchedItem>> syficionSearchText({required String pathPdf, required String searchString, int? startPage, int? endPage})async{
-  late Uint8List bytes;
-  try{
-    bytes = (await rootBundle.load(pathPdf)).buffer.asUint8List();
-  }catch(e){
-    bytes = (await File(pathPdf).readAsBytes());
+///пробуем сделать быстрый поиск текста
+List<MatchedItemMy> searchTextInTextLines({required List<List<TextLine>> textLines, required String searchString}){
+  List<MatchedItemMy> findedPoint = [];
+  List searchingPhrases = searchString.replaceAll(".", "").replaceAll(",", "").replaceAll("!", "").replaceAll("?", "").split(' ');
+
+  ///пока слово одно ищем по вхождению
+  ///когда слов в звпросе много, ищем по строгому соответсвию
+  if(searchingPhrases.length == 1){
+    for(int i = 0; i < textLines.length; i++){
+      for(int ii = 0; ii < textLines[i].length; ii++){
+        if(textLines[i][ii].text.toUpperCase().replaceAll(".", "").replaceAll(",", "").replaceAll("!", "").replaceAll("?", "").contains(searchString.toUpperCase())){
+          for(int iii = 0; iii < textLines[i][ii].wordCollection.length; iii++){
+              if(textLines[i][ii].wordCollection[iii].text.toUpperCase().replaceAll(".", "").replaceAll(",", "").replaceAll("!", "").replaceAll("?", "").contains(searchingPhrases[0].toUpperCase())){
+                MatchedItemMy find = MatchedItemMy();
+                find.text = textLines[i][ii].wordCollection[iii].text;
+                find.bounds = textLines[i][ii].wordCollection[iii].bounds;
+                find.pageIndex = textLines[i][ii].pageIndex;
+                findedPoint.add(find);
+              }
+          }
+        }
+
+      }
+    }
+  }else{
+    ///сначала ищем фразу в линиях текста
+    ///теперь в этих линиях ищем вхождение слов
+
+    for(int i = 0; i < textLines.length; i++){
+      for(int ii = 0; ii < textLines[i].length; ii++){
+        if(textLines[i][ii].text.toUpperCase().replaceAll(".", "").replaceAll(",", "").replaceAll("!", "").replaceAll("?", "").contains(searchString.toUpperCase())){
+          for(int iii = 0; iii < textLines[i][ii].wordCollection.length; iii++){
+            for(int iiii = 0; iiii < searchingPhrases.length; iiii++){
+              if(textLines[i][ii].wordCollection[iii].text.toUpperCase().replaceAll(".", "").replaceAll(",", "").replaceAll("!", "").replaceAll("?", "") == searchingPhrases[iiii].toUpperCase()){
+                MatchedItemMy find = MatchedItemMy();
+                find.text = textLines[i][ii].wordCollection[iii].text;
+                find.bounds = textLines[i][ii].wordCollection[iii].bounds;
+                find.pageIndex = textLines[i][ii].pageIndex;
+                findedPoint.add(find);
+              }
+            }
+
+          }
+        }
+
+      }
+    }
   }
-  final PdfDocument document = PdfDocument(inputBytes: bytes);
-  final extractor = PdfTextExtractor(document);
-  List<MatchedItem> text = [];
-
-    text = text + extractor.findText([searchString],startPageIndex: startPage, endPageIndex: null,);
-
-  document.dispose();
-  return text;
+      return findedPoint;
 }
 
-Future<List<MatchedItem>> syficionSearchTTT({required String pathPdf, required String searchString, int? startPage, int? endPage})async{
 
-  late Uint8List bytes;
-  try{
-    bytes = (await rootBundle.load(pathPdf)).buffer.asUint8List();
-  }catch(e){
-    bytes = (await File(pathPdf).readAsBytes());
-  }
-  final PdfDocument document = PdfDocument(inputBytes: bytes);
-  ///document.sections.
-  List<MatchedItem> text = PdfTextExtractor(document).findText([searchString],startPageIndex: startPage, endPageIndex: endPage);
-  document.dispose();
-  return text;
-}
 
 ///получить реальные размеры документа до всех обработок
 ///если необходимо, задаем страницу и определяем только ее размер
-Future<Size> syficionGrtSize({required String pathPdf, int? page})async{
+Future<Size> getPageSize({required String pathPdf, int? page})async{
   Size size = Size(0, 0);
   late Uint8List bytes;
   try{
@@ -129,9 +106,37 @@ Future<Size> syficionGrtSize({required String pathPdf, int? page})async{
   bytes = (await File(pathPdf).readAsBytes());
   }
   final PdfDocument document = PdfDocument(inputBytes: bytes);
-  //print('размер страницы документа ${document.pages[page ?? 0].size}');
   size = document.pages[page ?? 0].size;
   return size;
+}
+
+Future<String> getPageOrientation({required String pathPdf, int? page})async{
+  late Uint8List bytes;
+  try{
+    bytes = (await rootBundle.load(pathPdf)).buffer.asUint8List();
+  }catch(e){
+    bytes = (await File(pathPdf).readAsBytes());
+  }
+  final PdfDocument document = PdfDocument(inputBytes: bytes);
+  return document.pageSettings.orientation.name;
+}
+Future<List<int>> getPageRotation({required String pathPdf, int? page})async{
+  List<int> angles = [];
+  late Uint8List bytes;
+  try{
+    bytes = (await rootBundle.load(pathPdf)).buffer.asUint8List();
+  }catch(e){
+    bytes = (await File(pathPdf).readAsBytes());
+  }
+  final PdfDocument document = PdfDocument(inputBytes: bytes);
+  if(page == null){
+    for(int i = 0; i < document.pages.count; i++){
+      angles.add(document.pages[i].rotation.index);
+    }
+  }else{
+    angles.add(document.pages[page].rotation.index);
+  }
+  return angles;
 }
 
 ///добавить аннотацию и закладки
