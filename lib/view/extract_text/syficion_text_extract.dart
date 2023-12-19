@@ -150,7 +150,7 @@ Future<String> syficionAddAnnotation({required String pathPdf, int? page, List<A
   final PdfDocument document = PdfDocument(inputBytes: bytes);
 
   //print('размер страницы документа ${document.pages[0].size}');
-
+  //document.pages[0].graphics.drawString('${DateTime.now()}', PdfStandardFont(PdfFontFamily.helvetica, 12),brush: PdfBrushes.black);
    if(annotations != null){
 
        ///страница не задана бежим по всему документу

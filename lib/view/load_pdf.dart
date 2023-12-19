@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:developer';
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:path/path.dart' as path;
 import 'package:pdf_engine_vega/view/widgets/annot_eraser.dart';
@@ -23,6 +24,7 @@ import '../util/current_system_info.dart';
 import '../util/mached_item_class.dart';
 import '../util/piont_in_circle.dart';
 import 'extract_text/syficion_text_extract.dart';
+
 
 ///бинарники бибилотек https://github.com/bblanchon/pdfium-binaries
 ///обработка загрузки и конвертации PDF файла под разные ОС и последующее отображение на экране пользователя
@@ -117,45 +119,46 @@ class LoadPdf{
     int? page,
     int? zoom
   }) async {
-    String _path = pathPdf;
-    ///получаем исходные размеры документа, чтоб потом подстраивать рисование
-    bornDocSize = await getPageSize(pathPdf: pathPdf);
-    aspectRatioDoc = bornDocSize.aspectRatio;
-    width ??= bornDocSize.width;
-    height ??= bornDocSize.height;
-
-    screenWidth = width;
-    screenHeight = height;
-    aspectCoefX = width / bornDocSize.width;
-    aspectCoefY = height / bornDocSize.height;
-
-    ///добавляем аннотации если они есть или были нарисованы
-    _path =  await syficionAddAnnotation(pathPdf: pathPdf, annotations: annotations, bookmarks: bookmarks);
     List<Uint8List> filesPaths = [];
-    final directory = await getApplicationDocumentsDirectory();
-    String fileName = 'render';
-    int pageCount = await getPageCount(pathPdf:  _path);
-    if(Platform.isIOS){
-      PdfDocument pdfDocument = await PdfDocument.openFile(_path);
-      if(page == null){
-        for (int i = 1; i <= pageCount; i++) {
-          final pdfPage = await pdfDocument.getPage(i);
-          final pdfWidth = screenWidth * (zoom ?? 3);
-          final pdfHeight = screenHeight * (zoom ?? 3);
-          final image = await pdfPage.render(
-            width: pdfWidth,
-            height: pdfHeight,
-            format: PdfPageImageFormat.jpeg,
-            backgroundColor: '#FFFFFFFF',
-            quality: 100,
-          );
-          final bytes = image!.bytes;
-          filesPaths.add(bytes);
-        }
-      }else{
+      String _path = pathPdf;
+      ///получаем исходные размеры документа, чтоб потом подстраивать рисование
+      bornDocSize = await getPageSize(pathPdf: pathPdf);
+      aspectRatioDoc = bornDocSize.aspectRatio;
+      width = bornDocSize.width * (zoom ?? 1);
+      height = bornDocSize.height * (zoom ?? 1);
+
+      screenWidth = width;
+      screenHeight = height;
+      aspectCoefX = width / bornDocSize.width;
+      aspectCoefY = height / bornDocSize.height;
+      //oldListPaths = [];
+      ///добавляем аннотации если они есть или были нарисованы
+      _path =  await syficionAddAnnotation(pathPdf: pathPdf, annotations: annotations, bookmarks: bookmarks);
+
+      final directory = await getApplicationDocumentsDirectory();
+      String fileName = 'render${zoom != null && zoom != 1 ? 'zoom' : ''}';
+      int pageCount = await getPageCount(pathPdf:  _path);
+      if(Platform.isIOS){
+        PdfDocument pdfDocument = await PdfDocument.openFile(_path);
+        if(page == null){
+          for (int i = 1; i <= pageCount; i++) {
+            final pdfPage = await pdfDocument.getPage(i);
+            final pdfWidth = screenWidth;
+            final pdfHeight = screenHeight;
+            final image = await pdfPage.render(
+              width: pdfWidth,
+              height: pdfHeight,
+              format: PdfPageImageFormat.jpeg,
+              backgroundColor: '#FFFFFFFF',
+              quality: 100,
+            );
+            final bytes = image!.bytes;
+            filesPaths.add(bytes);
+          }
+        }else{
           final pdfPage = await pdfDocument.getPage(page + 1);
-          final pdfWidth = screenWidth * (zoom ?? 3);
-          final pdfHeight = screenHeight * (zoom ?? 3);
+          final pdfWidth = screenWidth;
+          final pdfHeight = screenHeight;
           final image = await pdfPage.render(
             width: pdfWidth,
             height: pdfHeight,
@@ -165,46 +168,80 @@ class LoadPdf{
           );
           final bytes = image!.bytes;
           filesPaths.add(bytes);
-      }
-
-      await pdfDocument.close();
-    }
-    else{
-
-      late Uint8List bytes;
-      ///загрузка из ассета, но нам может понадобиться загрузка из локального хранилища
-      try{
-        bytes = (await rootBundle.load(_path)).buffer.asUint8List();
-      }catch(e){
-        bytes = (File(_path).readAsBytesSync());
-      }
-      ///получить количество страниц
-      final document = pdfium!.loadDocumentFromBytes(bytes);
-
-      ///циклом собрать массив отрендеренных страниц для отображения
-      if(page == null){
-        List<int> rotation = await getPageRotation(pathPdf: pathPdf,);
-        for(int i = 0; i < pageCount; i++){
-          int realWidth = rotation[i] == 0 || rotation[i] == 2 ? screenWidth.toInt() * (zoom ?? 3) : screenHeight.toInt() * (zoom ?? 3);
-          int realHeight = rotation[i] != 0 && rotation[i] != 2 ? screenWidth.toInt() * (zoom ?? 3) : screenHeight.toInt() * (zoom ?? 3);
-          document.loadPage(i).
-          savePageAsJpg('${directory.path}${Platform.pathSeparator}$fileName$i.jpg', qualityJpg: 100, flags: 1, width: realWidth, height: realHeight,)
-              .closePage();
-          final bytes = await File('${directory.path}${Platform.pathSeparator}$fileName$i.jpg').readAsBytes();
-          filesPaths.add(bytes);
         }
-      }else{
-        List<int> rotation = await getPageRotation(pathPdf: pathPdf, page: page);
-        int realWidth = rotation.first == 0 || rotation.first == 2 ? screenWidth.toInt() * (zoom ?? 3) : screenHeight.toInt() * (zoom ?? 3);
-        int realHeight = rotation.first != 0 && rotation.first != 2 ? screenWidth.toInt() * (zoom ?? 3) : screenHeight.toInt() * (zoom ?? 3);
-        document.loadPage(page).
-        savePageAsJpg('${directory.path}${Platform.pathSeparator}$fileName$page.jpg', qualityJpg: 100, flags: 1, width: realWidth, height: realHeight,)
-            .closePage();
-        final bytes = await File('${directory.path}${Platform.pathSeparator}$fileName$page.jpg').readAsBytes();
-        filesPaths.add(bytes);
-      }
 
-    }
+        await pdfDocument.close();
+      }
+      else{
+
+        late Uint8List bytes;
+        ///загрузка из ассета, но нам может понадобиться загрузка из локального хранилища
+        try{
+          bytes = (await rootBundle.load(_path)).buffer.asUint8List();
+        }catch(e){
+          bytes = (File(_path).readAsBytesSync());
+        }
+        ///получить количество страниц
+        final document = pdfium!.loadDocumentFromBytes(bytes);
+
+        ///циклом собрать массив отрендеренных страниц для отображения
+        if(page == null){
+          //List<int> rotation = await getPageRotation(pathPdf: pathPdf,);
+          //print(rotation);
+
+          for(int i = 0; i < pageCount; i++){
+            //String orient = await getPageOrientation(pathPdf: pathPdf, page: i);
+            //print(orient);
+            Size size = await getPageSize(pathPdf: pathPdf, page: i);
+            //print(size);
+            //int realWidth = rotation[i] == 0 || rotation[i] == 2 ? screenWidth.toInt() : screenHeight.toInt();
+            //int realHeight = rotation[i] != 0 && rotation[i] != 2 ? screenWidth.toInt() : screenHeight.toInt();
+
+            int realWidth = (size.width * (zoom ?? 1)).toInt();
+            int realHeight = (size.height * (zoom ?? 1)).toInt();
+            document.loadPage(i).
+            savePageAsJpg('${directory.path}${Platform.pathSeparator}$fileName$i.jpg', qualityJpg: 100, flags: 1, width: realWidth, height: realHeight,)
+                .closePage();
+
+            final ReceivePort port = ReceivePort();
+            final isolate = await Isolate.spawn(
+              isolateLoad,
+              [port.sendPort, i, fileName, directory,],
+            );
+            final result = await port.first;
+            isolate.kill(priority: Isolate.immediate);
+            filesPaths.add(result);
+
+            oldListPaths.length > i ? oldListPaths[i] = result : oldListPaths.add(result);
+          }
+        }else{
+          List<int> rotation = await getPageRotation(pathPdf: pathPdf, page: page);
+          int realWidth = rotation.first == 0 || rotation.first == 2 ? screenWidth.toInt() : screenHeight.toInt();
+          int realHeight = rotation.first != 0 && rotation.first != 2 ? screenWidth.toInt() : screenHeight.toInt();
+          document.loadPage(page).
+          //savePageAsPng('${directory.path}${Platform.pathSeparator}$fileName$page.png', flags: 0, width: realWidth, height: realHeight,)
+          savePageAsJpg('${directory.path}${Platform.pathSeparator}$fileName$page.jpg', qualityJpg: 100, flags: 1, width: realWidth, height: realHeight,)
+              .closePage();
+          // final bytes = await File('${directory.path}${Platform.pathSeparator}$fileName$page.jpg').readAsBytes();
+          // filesPaths.add(bytes);
+          final ReceivePort port = ReceivePort();
+          final isolate = await Isolate.spawn(
+            isolateLoad,
+            [port.sendPort, page, fileName, directory,],
+          );
+          final result = await port.first;
+          isolate.kill(priority: Isolate.immediate);
+          filesPaths.add(result);
+          //oldListPaths.add(result);
+        }
+
+      }
+      lines = List.generate(filesPaths.length, (_) => []);
+      erasePositions = List.generate(filesPaths.length, (_) => []);
+      globalKeys = List.generate(filesPaths.length, (_) => GlobalKey());
+      //oldPath = pathPdf;
+      oldListPaths = filesPaths;
+      loadComplite = true;
     return filesPaths;
   }
 
@@ -246,7 +283,7 @@ class LoadPdf{
   ///формируем разорванные ластиком массивы, после добавим их в основной массив
   List<DrawLineItem> brokenLists = [];
   String searchTextString = '';
-
+  List<Widget> _children = [];
   ///Загружаем в ListView документ целиком
   Widget child({
     ///путь к файлу PDF, может быть как asset так и из хранилища документов
@@ -266,8 +303,7 @@ class LoadPdf{
     ///размеры экрана
     double? width,
     double? height,
-    //int? zoom,
-    required bool fullscreen
+    int? zoom,
   }){
     imageCache.clear();
     imageCache.clearLiveImages();
@@ -382,24 +418,23 @@ class LoadPdf{
     void onVisibilityChanged(VisibilityInfo info) {
       visiblyPage = int.parse(info.key.toString().replaceAll('[<\'', '').replaceAll('\'>]', ''));
       try{
-        func();
+        //func();
       }catch(e){}
     }
 
     return FutureBuilder<List<Uint8List>>(
         future: oldPath == pathPdf ? returnOldList()
-            : loadAssetAll(pathPdf: pathPdf, annotations: annotations, bookmarks: bookmarks, width: width, height: height, zoom: fullscreen ? 3 : 1),
+            : loadAssetAll(pathPdf: pathPdf, annotations: annotations, bookmarks: bookmarks, width: width, height: height, zoom: zoom),
         builder: (context, snapshot) {
           if(snapshot.hasData && oldPath != pathPdf){
             ///блокируем перерисовки
-            lines = List.generate(snapshot.data!.length, (_) => [DrawLineItem(subject: mode.name)]);
-            erasePositions = List.generate(snapshot.data!.length, (_) => []);
-            globalKeys = List.generate(snapshot.data!.length, (_) => GlobalKey());
-            oldListPaths = snapshot.data!;
-            oldPath = pathPdf;
-            loadComplite = true;
+            // lines = List.generate(snapshot.data!.length, (_) => [DrawLineItem(subject: mode.name)]);
+            // erasePositions = List.generate(snapshot.data!.length, (_) => []);
+            // globalKeys = List.generate(snapshot.data!.length, (_) => GlobalKey());
+             oldPath = pathPdf;
+
           }
-          List<Widget> children = snapshot.hasData && oldListPaths.isNotEmpty ? snapshot.data!.map((item) => StatefulBuilder(
+          _children = snapshot.hasData ? snapshot.data!.map((item) => StatefulBuilder(
               builder: (BuildContext context, StateSetter setState){
                 ///номер страницы
                 int index = snapshot.data!.indexWhere((e) => e == item);
@@ -416,18 +451,19 @@ class LoadPdf{
                                 quarterTurns: rotation,
                                 child: Container(
                                   //color: Colors.red.withOpacity(0.5),
-                                    //width: screenWidth,
-                                    //height: screenHeight,
+                                  //width: screenWidth,
+                                  //height: screenHeight,
                                     key: globalKeys[index],
                                     margin: const EdgeInsets.fromLTRB(5, 5, 5, 5),
                                     child: Stack(
                                       children: [
                                         ///поворт блока надо совместить с нарисованными линиями
+
                                         Image.memory(
                                           item,
-                                          width: screenWidth,
-                                          height: screenHeight,
-                                          fit: BoxFit.fitWidth,
+                                          //width: screenWidth,
+                                          //height: screenHeight,
+                                          //fit: BoxFit.fitWidth,
                                         ),
                                         ///рисуем выделения найденого текста
                                         ...findedFragments.where((el) => el.pageIndex == index).toList().map((e) => Positioned(
@@ -451,21 +487,21 @@ class LoadPdf{
                                           )).toList(),
                                         ///рисуем нарисованную аннотацию как затычку
                                         ...lines[index].map((e)=>FingerPaint(line:  e.line, mode: mode == AnnotState.erase ? AnnotState.freeForm : mode, color: e.color, thickness: e.thickness, )).toList(),
-                                        ...annotations!.where((element) =>
-                                        element.page == index)
-                                            .toList().map((e){
-                                          e.aspectCoefX = aspectCoefX;
-                                          e.aspectCoefY = aspectCoefY;
-                                          return FingerPaint(line: e.points.map((p) => Offset(p.x  * aspectCoefX, p.y  * aspectCoefY)).toList(), mode: e.subject == 'selectText' ? AnnotState.selectText : AnnotState.freeForm, color: Color(e.color!.toInt())      , thickness: e.border!.width, );
-                                        }).toList(),
+                                        // ...annotations!.where((element) =>
+                                        // element.page == index)
+                                        //     .toList().map((e){
+                                        //   e.aspectCoefX = aspectCoefX;
+                                        //   e.aspectCoefY = aspectCoefY;
+                                        //   return FingerPaint(line: e.points.map((p) => Offset(p.x  * aspectCoefX, p.y  * aspectCoefY)).toList(), mode: e.subject == 'selectText' ? AnnotState.selectText : AnnotState.freeForm, color: Color(e.color!.toInt())      , thickness: e.border!.width, );
+                                        // }).toList(),
                                         ///интегрируется виджет области аннотации
-                                        ...annotations.where((element) =>
-                                        element.page == index)
-                                            .toList().map((e){
-                                          e.aspectCoefX = aspectCoefX;
-                                          e.aspectCoefY = aspectCoefY;
-                                          return e.tapChild;
-                                        }).toList(),
+                                        // ...annotations.where((element) =>
+                                        // element.page == index)
+                                        //     .toList().map((e){
+                                        //   e.aspectCoefX = aspectCoefX;
+                                        //   e.aspectCoefY = aspectCoefY;
+                                        //   return e.tapChild;
+                                        // }).toList(),
                                         ///указатель ластика
                                         if(mode == AnnotState.erase && index == visiblyPage) AnnotEraser(eraseRadius: eraseRadius, erasePosition: erasePosition,),
                                         ///прелоадер, если для страницы еще пуст список текст лайнов
@@ -479,14 +515,14 @@ class LoadPdf{
                 );
               }
           )).toList() : [];
-          return !snapshot.hasData && oldListPaths.isEmpty
-              ? const Center( child: SizedBox(width: 60, height: 60, child: CircularProgressIndicator(color: Color(0xFFF57C00))))
+          return !snapshot.hasData
+              ? const Center( child: SizedBox(width: 60, height: 60, child: CircularProgressIndicator(color: Color(0xFFF57C00),)))
               : ListView(
               shrinkWrap: true,
-              physics: const ScrollPhysics(),
+              physics: const AlwaysScrollableScrollPhysics(),
               scrollDirection: scrollDirection!,
               controller: scrollController,
-              children: children
+              children: _children
           );
         });
     //}
@@ -500,6 +536,16 @@ class LoadPdf{
 
 }
 
+
+
+void isolateLoad(List<dynamic> values)async{
+  final SendPort sendPort = values[0];
+  final int i = values[1];
+  final String fileName = values[2];
+  final Directory directory = values[3];
+  final bytes = await File('${directory.path}${Platform.pathSeparator}$fileName$i.jpg').readAsBytes();
+  sendPort.send(bytes);
+}
 
 extension Unique<E, Id> on List<E> {
   List<E> unique([Id Function(E element)? id, bool inplace = true]) {
