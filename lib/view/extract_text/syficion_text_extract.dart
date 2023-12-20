@@ -42,6 +42,8 @@ void getTextLines(List<dynamic> values){
 
 
 
+
+
 ///пробуем сделать быстрый поиск текста
 List<MatchedItemMy> searchTextInTextLines({required List<List<TextLine>> textLines, required String searchString}){
   List<MatchedItemMy> findedPoint = [];
@@ -149,45 +151,43 @@ Future<String> syficionAddAnnotation({required String pathPdf, int? page, List<A
   }
   final PdfDocument document = PdfDocument(inputBytes: bytes);
 
-  //print('размер страницы документа ${document.pages[0].size}');
-  //document.pages[0].graphics.drawString('${DateTime.now()}', PdfStandardFont(PdfFontFamily.helvetica, 12),brush: PdfBrushes.black);
-   if(annotations != null){
+  if(annotations != null){
 
-       ///страница не задана бежим по всему документу
-       for(int i = 0; i < annotations.length; i++){
-         if(annotations[i].points.isNotEmpty){
-           if(annotations[i].subject == 'selectText'){
-             ///Add select text annotation
-             if(page == null || annotations[i].page == page){
-               document.pages[annotations[i].page].graphics
-                 ..setTransparency(0.5, alphaBrush: 0.5, mode: PdfBlendMode.hardLight)
-                 ..drawPath(
-                   PdfPath()
-                     ..addPath([
-                       ...annotations[i].points.map((e) => Offset(e.x, e.y)).toList().cast<Offset>()
-                     ], [0,...annotations[i].points.map((e) => 1).toList().cast<int>()..removeLast()]),
-                   pen: PdfPen.fromBrush(PdfBrushes.blue, width: 10, dashStyle: PdfDashStyle.dashDotDot, lineCap: PdfLineCap.square, lineJoin: PdfLineJoin.round ),
-                 );
-             }
+    ///страница не задана бежим по всему документу
+    for(int i = 0; i < annotations.length; i++){
+      if(annotations[i].points.isNotEmpty){
+        if(annotations[i].subject == 'selectText'){
+          ///Add select text annotation
+          if(page == null || annotations[i].page == page){
+            document.pages[annotations[i].page].graphics
+              ..setTransparency(0.5, alphaBrush: 0.5, mode: PdfBlendMode.hardLight)
+              ..drawPath(
+                PdfPath()
+                  ..addPath([
+                    ...annotations[i].points.map((e) => Offset(e.x, e.y)).toList().cast<Offset>()
+                  ], [0,...annotations[i].points.map((e) => 1).toList().cast<int>()..removeLast()]),
+                pen: PdfPen.fromBrush(PdfBrushes.blue, width: 10, dashStyle: PdfDashStyle.dashDotDot, lineCap: PdfLineCap.square, lineJoin: PdfLineJoin.round ),
+              );
+          }
 
-           }else{
-             ///Add ink pen annotation
-             if(page == null || annotations[i].page == page){
-               document.pages[annotations[i].page].graphics
-                   .drawPath(
-                 PdfPath()
-                   ..addPath([
-                     ...annotations[i].points.map((e) => Offset(e.x, e.y)).toList().cast<Offset>()
-                   ], [0,...annotations[i].points.map((e) => 1).toList().cast<int>()..removeLast()]),
-                 pen: PdfPen.fromBrush(PdfBrushes.blue, width: annotations[i].border!.width / 2, dashStyle: PdfDashStyle.dashDotDot, lineCap: PdfLineCap.round, lineJoin: PdfLineJoin.round ),
-               );
-             }
-           }
-         }
-       }
+        }else{
+          ///Add ink pen annotation
+          if(page == null || annotations[i].page == page){
+            document.pages[annotations[i].page].graphics
+                .drawPath(
+              PdfPath()
+                ..addPath([
+                  ...annotations[i].points.map((e) => Offset(e.x, e.y)).toList().cast<Offset>()
+                ], [0,...annotations[i].points.map((e) => 1).toList().cast<int>()..removeLast()]),
+              pen: PdfPen.fromBrush(PdfBrushes.blue, width: annotations[i].border!.width / 2, dashStyle: PdfDashStyle.dashDotDot, lineCap: PdfLineCap.round, lineJoin: PdfLineJoin.round ),
+            );
+          }
+        }
+      }
+    }
 
 
-   }
+  }
 
   ///добавить закладку
   if(bookmarks!.isNotEmpty){
@@ -200,6 +200,8 @@ Future<String> syficionAddAnnotation({required String pathPdf, int? page, List<A
     }
   }
 
+
+
   ///сохраняем в темп
   final directory = await getApplicationDocumentsDirectory();
   String tempName = 'output.pdf';
@@ -209,7 +211,7 @@ Future<String> syficionAddAnnotation({required String pathPdf, int? page, List<A
   }
   await file.writeAsBytes(await document.save());
   ///показываем пользователю
-  print(file.path);
+  //print(file.path);
   return file.path;
 }
 
