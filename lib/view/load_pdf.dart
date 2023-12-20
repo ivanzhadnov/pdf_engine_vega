@@ -120,7 +120,7 @@ class LoadPdf{
     int? zoom,
     String? color,
   }) async {
-    //print('загрузили по новой $page zoom $zoom');
+    print('загрузили по новой $page zoom $zoom');
     List<Uint8List> filesPaths = [];
     String _path = pathPdf;
     ///получаем исходные размеры документа, чтоб потом подстраивать рисование
@@ -191,8 +191,6 @@ class LoadPdf{
 
       ///циклом собрать массив отрендеренных страниц для отображения
       if(page == null){
-        //List<int> rotation = await getPageRotation(pathPdf: pathPdf,);
-        //print(rotation);
         List<int> rotation = await getPageRotation(pathPdf: pathPdf,);
 
         for(int i = 0; i < pageCount; i++){
@@ -235,40 +233,8 @@ class LoadPdf{
             .closePage();
         final _bytes = File('${directory.path}${Platform.pathSeparator}$fileName$page.jpg').readAsBytesSync();
         filesPaths.add(_bytes);
-        //oldListPaths[page]=_bytes;
-        //print('${directory.path}${Platform.pathSeparator}$fileName$page.jpg');
-
-
-        // final ReceivePort port = ReceivePort();
-        // final isolate = await Isolate.spawn(
-        //   getZoomPage,
-        //   [port.sendPort, document, 3, screenWidth, screenHeight, pathPdf, page, fileName, directory],
-        // );
-        // final result = await port.first;
-        // isolate.kill(priority: Isolate.immediate);
-        // oldListPathsZoom[page] = result;
-
-
-        //void getZoomPage(List<dynamic> values)async{}
-          // final SendPort sendPort = values[0];
-          // final PdfiumWrap document = values[1];
-          // final int zoom = values[2];
-          // final double screenWidth = values[3];
-          // final double screenHeight = values[4];
-          // final String pathPdf = values[5];
-          // final int page = values[6];
-          // final String fileName = values[7];
-          // final Directory directory = values[8];
-
       }
-
     }
-    ///TODO return for old child
-    // lines = List.generate(filesPaths.length, (_) => []);
-    // erasePositions = List.generate(filesPaths.length, (_) => []);
-    // globalKeys = List.generate(filesPaths.length, (_) => GlobalKey());
-    // oldListPaths = filesPaths;
-    // loadComplite = true;
     return filesPaths;
   }
 
@@ -284,7 +250,7 @@ class LoadPdf{
 
   String oldPath = '';
   List<Uint8List> oldListPaths = [];
-  List<Uint8List> oldListPathsZoom = [];
+
 
 
   ///индикация активной страницы и перелистывание страниц
@@ -298,7 +264,7 @@ class LoadPdf{
   ///формируем разорванные ластиком массивы, после добавим их в основной массив
   List<DrawLineItem> brokenLists = [];
   String searchTextString = '';
-  List<Widget> _children = [];
+
 
   ///обрабатываем нажатие по скролл контроллеру
   changePage(int page, setState){
@@ -317,8 +283,6 @@ class LoadPdf{
 
   int count = 0;
   Future<List<Uint8List>>retutnBytes(int index, zoom)async{
-    //print('взяли из сохранения');
-    //return zoom == 1 ? [oldListPaths[index]] : [oldListPathsZoom[index]];
     return [oldListPaths[index]];
   }
 
@@ -448,7 +412,6 @@ class LoadPdf{
             brokenLists.add(lines[index][i]);
           }
         }
-
         lines[index] = brokenLists;
         brokenLists = [];
         setState((){});
@@ -464,37 +427,43 @@ class LoadPdf{
         }
     }
 
+    bool reload = false;
 
     ///определяем количество страниц в документе
     return FutureBuilder<int>(
         future: count == 0 ? getPageCount(pathPdf: pathPdf) : returnCount(),
         builder: (context, snapshot) {
-          if(oldPath != pathPdf){
+          if(snapshot.hasData && count == 0){
+            reload = true;
             document = null;
             oldPath = pathPdf;
             //oldListPaths = [];
-            oldListPaths = List.generate(count, (_) => Uint8List(0));
-          }
-          if(snapshot.hasData){
+            //oldListPaths = List.generate(count, (_) => Uint8List(0));
             count = snapshot.data ?? 0;
-            if(count > 0 && oldListPaths.isEmpty){
+            if(count > 0){
               lines = List.generate(count, (_) => []);
               erasePositions = List.generate(count, (_) => []);
               globalKeys = List.generate(count, (_) => GlobalKey());
               oldListPaths = List.generate(count, (_) => Uint8List(0));
-              oldListPathsZoom = List.generate(count, (_) => Uint8List(0));
             }
           }
 
 
-          _children = List.generate(count, (index) => index == 0 || (index > 0 && oldListPaths[index -1].length > 0) ? FutureBuilder<List<Uint8List>>(
-              future: oldListPaths[index].isEmpty ? loadAssetAll(pathPdf: pathPdf, annotations: annotations, bookmarks: bookmarks, width: width, height: height, zoom: zoom, page: index) : retutnBytes(index, zoom),
+          List<Widget> _children = List.generate(count, (index) => index == 0 || (index > 0 && oldListPaths[index-1].isNotEmpty) ? FutureBuilder<List<Uint8List>>(
+              future:
+              reload || oldListPaths[index].isEmpty ?
+              loadAssetAll(pathPdf: pathPdf, annotations: annotations, bookmarks: bookmarks, width: width, height: height, zoom: zoom, page: index)
+                  : retutnBytes(index, zoom)
+              ,
               builder: (context, _snapshot) {
-                if(_snapshot.hasData && _snapshot.data != null && oldListPaths[index].isEmpty){
-                  oldListPaths[index] = _snapshot.data!.first;
-                  //print('переназначили страницу $index');
+                //print(oldListPaths[index].lengthInBytes);
+                if(_snapshot.hasData && _snapshot.data != null){
+                    oldListPaths[index] = _snapshot.data!.first;
                 }
-                //print('page $index length ${oldListPaths[index].length}');
+                //if(_snapshot.hasData && _snapshot.data != null)print('image size ${_snapshot.data!.first.lengthInBytes}
+                if(index == count){
+                  reload = false;
+                }
                 if(_snapshot.hasData){
                   return  StatefulBuilder(
                       builder: (BuildContext context, StateSetter setState)=> Center(
@@ -600,36 +569,6 @@ class LoadPdf{
         });
   }
 }
-
-void getZoomPage(List<dynamic> values)async{
-  final SendPort sendPort = values[0];
-  final PdfiumWrap document = values[1];
-  final int zoom = values[2];
-  final double screenWidth = values[3];
-  final double screenHeight = values[4];
-  final String pathPdf = values[5];
-  final int page = values[6];
-  final String fileName = values[7];
-  final Directory directory = values[8];
-  List<int> rotation = await getPageRotation(pathPdf: pathPdf, page: page);
-  Size size = await getPageSize(pathPdf: pathPdf, page: page);
-  int realWidth = 0;
-  int realHeight = 0;
-  if(rotation.first == 0 || rotation.first == 2){
-    realWidth = (size.width * (zoom ?? 1)).toInt();
-    realHeight = (size.height * (zoom ?? 1)).toInt();
-  }else{
-    realWidth = rotation.first == 0 || rotation.first == 2 ? screenWidth.toInt() : screenHeight.toInt();
-    realHeight = rotation.first != 0 && rotation.first != 2 ? screenWidth.toInt() : screenHeight.toInt();
-  }
-
-  document!.loadPage(page).
-  savePageAsJpg('${directory.path}${Platform.pathSeparator}$fileName$page.jpg', qualityJpg: 100, flags: 1, width: realWidth, height: realHeight,)
-      .closePage();
-  final _bytes = File('${directory.path}${Platform.pathSeparator}$fileName$page.jpg').readAsBytesSync();
-  sendPort.send(_bytes);
-}
-
 
 extension Unique<E, Id> on List<E> {
   List<E> unique([Id Function(E element)? id, bool inplace = true]) {
