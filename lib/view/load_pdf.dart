@@ -120,7 +120,7 @@ class LoadPdf{
     int? zoom,
     String? color,
   }) async {
-    print('загрузили по новой $page zoom $zoom');
+    //print('загрузили по новой $page zoom $zoom');
     List<Uint8List> filesPaths = [];
     String _path = pathPdf;
     ///получаем исходные размеры документа, чтоб потом подстраивать рисование
