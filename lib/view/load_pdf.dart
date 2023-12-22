@@ -50,18 +50,19 @@ class LoadPdf{
     final directory = await getApplicationDocumentsDirectory();
     if(Platform.isAndroid){
       String libAsset = 'assets/libpdf/libpdfium_android.so';
-      if(sysInfo!.kernelBitness == 32){
-        if(sysInfo.kernelArchitecture == ProcessorArchitecture.x86){
-          libAsset = 'assets/libpdf/libpdfium_android_32_x86.so';
-        }else{
-          libAsset = 'assets/libpdf/libpdfium_android_32.so';
-        }
-
-      }
+      // if(sysInfo!.kernelBitness == 32){
+      //   if(sysInfo.kernelArchitecture == ProcessorArchitecture.x86){
+      //     libAsset = 'assets/libpdf/libpdfium_android_32_x86.so';
+      //   }else{
+      //     libAsset = 'assets/libpdf/libpdfium_android_32.so';
+      //   }
+      //
+      // }
       final String localPath = directory.path;
       File file = File('$localPath/libpdfium_android.so');
       bool exist = await file.exists();
       if(!exist){
+        print('файла библиотеки нет, поэтому копируем его из ассет');
         final asset = await rootBundle.load(libAsset);
         final buffer = asset.buffer;
         await file.writeAsBytes(buffer.asUint8List(asset.offsetInBytes, asset.lengthInBytes));
@@ -120,7 +121,7 @@ class LoadPdf{
     int? zoom,
     String? color,
   }) async {
-    //print('загрузили по новой $page zoom $zoom');
+    print('загрузили по новой $page zoom $zoom');
     List<Uint8List> filesPaths = [];
     String _path = pathPdf;
     ///получаем исходные размеры документа, чтоб потом подстраивать рисование
@@ -137,7 +138,8 @@ class LoadPdf{
     final directory = await getApplicationDocumentsDirectory();
     String fileName = 'render${zoom != null && zoom != 1 ? 'zoom' : ''}';
     int pageCount = page != null ? 0 : await getPageCount(pathPdf:  _path);
-    if(Platform.isIOS){
+
+    if(Platform.isIOS || Platform.isAndroid){
       _path =  await syficionAddAnnotation(pathPdf: pathPdf, annotations: annotations, bookmarks: bookmarks, page: page);
       loadComplite = true;
       PdfDocument pdfDocument = await PdfDocument.openFile(_path);
@@ -153,8 +155,9 @@ class LoadPdf{
             backgroundColor: color ?? '#FFFFFFFF',
             quality: 100,
           );
-          final bytes = image!.bytes;
-          filesPaths.add(bytes);
+         if(Platform.isAndroid) pdfPage.close();
+          final _bytes = image!.bytes;
+          filesPaths.add(_bytes);
         }
       }else{
         final pdfPage = await pdfDocument.getPage(page + 1);
@@ -167,6 +170,7 @@ class LoadPdf{
           backgroundColor: color ?? '#FFFFFFFF',
           quality: 100,
         );
+        if(Platform.isAndroid) pdfPage.close();
         final bytes = image!.bytes;
         filesPaths.add(bytes);
       }
@@ -191,6 +195,7 @@ class LoadPdf{
 
       ///циклом собрать массив отрендеренных страниц для отображения
       if(page == null){
+        print('$pageCount');
         List<int> rotation = await getPageRotation(pathPdf: pathPdf,);
 
         for(int i = 0; i < pageCount; i++){
@@ -207,11 +212,10 @@ class LoadPdf{
             realWidth = rotation[i] == 0 || rotation[i] == 2 ? screenWidth.toInt() : screenHeight.toInt();
             realHeight = rotation[i] != 0 && rotation[i] != 2 ? screenWidth.toInt() : screenHeight.toInt();
           }
-
           document!.loadPage(i).
-          savePageAsJpg('${directory.path}${Platform.pathSeparator}$fileName$i.jpg', qualityJpg: 100, flags: 1, width: realWidth, height: realHeight,)
+          savePageAsJpg('${directory.path}${Platform.pathSeparator}$fileName$i.jpg', qualityJpg: 100, flags: 1, width: realWidth, height: realHeight, backgroundColor: int.parse((color ?? '#FFFFFFFF').replaceAll('#', '0x')))
               .closePage();
-          final _bytes = File('${directory.path}${Platform.pathSeparator}$fileName$page.jpg').readAsBytesSync();
+          final _bytes = await File('${directory.path}${Platform.pathSeparator}$fileName$i.jpg').readAsBytes();
           filesPaths.add(_bytes);
         }
       }
