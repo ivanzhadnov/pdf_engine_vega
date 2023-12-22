@@ -79,7 +79,7 @@ class LoadPdf{
       libraryPath = file.path;
     }
     else if(Platform.isWindows){
-      libraryPath = path.join(Directory.current.path, 'pdfium.dll');
+      libraryPath = path.join(Directory.current.path, 'pdfium_win.dll');
     }
     else if(Platform.isLinux){
       libraryPath = path.join(Directory.current.path, 'libpdfium.so');
