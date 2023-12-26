@@ -58,7 +58,8 @@ class MyPainter extends CustomPainter {
     Colors.orange,
     Colors.green,
     Colors.blue,
-    Color(0xFF00ff00)
+    Color(0xFF00ff00),
+    Colors.white
   ];
   final _random = Random();
 
@@ -68,7 +69,7 @@ class MyPainter extends CustomPainter {
     final points = line;
     final paint = Paint()
       //..color = colors[_random.nextInt(colors.length)]
-      ..color = mode == AnnotState.freeForm ? color : mode == AnnotState.erase ? Colors.white : colors[4].withOpacity(0.4)
+      ..color = mode == AnnotState.freeForm ? color : mode == AnnotState.erase ? Colors.white : Colors.transparent
       ..strokeWidth = mode == AnnotState.freeForm ? thickness : 12
       ..strokeCap = mode == AnnotState.freeForm ? StrokeCap.round : StrokeCap.square;
     canvas.drawPoints(pointMode, points, paint);

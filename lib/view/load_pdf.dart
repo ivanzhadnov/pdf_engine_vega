@@ -10,6 +10,7 @@ import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:pdfx/pdfx.dart';
+import 'package:pinch_zoom_release_unzoom/pinch_zoom_release_unzoom.dart';
 import 'package:syncfusion_flutter_pdf/pdf.dart' as sf;
 import 'package:system_info2/system_info2.dart';
 import 'package:visibility_detector/visibility_detector.dart';
@@ -342,7 +343,16 @@ class LoadPdf{
       startSelectTextPoint = v.localPosition;
 
       if(mode == AnnotState.selectText || mode == AnnotState.freeForm){
-        lines[index].add(DrawLineItem(subject: mode.name));
+        if(lines[index].isNotEmpty){
+          final color = lines[index].last.color;
+          final thicknes = lines[index].last.thickness;
+          lines[index].add(DrawLineItem(subject: mode.name));
+          lines[index].last.color = color;
+          lines[index].last.thickness = thicknes;
+        }else{
+          lines[index].add(DrawLineItem(subject: mode.name));
+        }
+
         yLine = -1;
         setState((){});
       }else if(mode == AnnotState.erase){
@@ -388,7 +398,7 @@ class LoadPdf{
         if(mode == AnnotState.selectText){
           endtSelectTextPoint = current;
           if(textLines[visiblyPage].isNotEmpty){
-            lines[index].last.subject = 'freeForm';
+            lines[index].last.subject = 'selectText';
             lines[index].last.line = [];
            ///создаем массив из текслиний которые между началом и концом курсора по высоте
             Offset newstartSelectTextPoint = const Offset(0.0,0.0);
@@ -404,102 +414,79 @@ class LoadPdf{
             final filterdLines = [];
 
             for(int i = 0; i < textLines[visiblyPage].length; i++){
-              if(textLines[visiblyPage][i].bounds.bottom >= newstartSelectTextPoint.dy * aspectCoefY
-              && textLines[visiblyPage][i].bounds.top <= newendtSelectTextPoint.dy * aspectCoefY){
+              if(textLines[visiblyPage][i].bounds.bottom >= newstartSelectTextPoint.dy
+              && textLines[visiblyPage][i].bounds.top <= newendtSelectTextPoint.dy){
                 filterdLines.add(textLines[visiblyPage][i]);
               }
             }
 
             if(filterdLines.isNotEmpty){
               String result = '';
+              selectedFragments[visiblyPage] = [];
               for(int i =0; i < filterdLines.length; i++){
-                for(int ii =0; ii < filterdLines[i].wordCollection.length; ii++){
-                  if(i == 0 && filterdLines[i].wordCollection[ii].bounds.left >= newstartSelectTextPoint.dx){
-                    lines[index].last.line.add(Offset(newstartSelectTextPoint.dx, filterdLines[i].wordCollection[ii].bounds.centerLeft.dy));
-                    lines[index].last.line.add(filterdLines[i].wordCollection[ii].bounds.centerLeft);
-                    lines[index].last.line.add(filterdLines[i].wordCollection[ii].bounds.centerRight);
-                    result += filterdLines[i].wordCollection[ii].text;
-                  }else if( i == filterdLines.length - 1 && filterdLines[i].wordCollection[ii].bounds.right <= newendtSelectTextPoint.dx){
-                    lines[index].last.line.add(filterdLines[i].wordCollection[ii].bounds.centerLeft);
-                    lines[index].last.line.add(filterdLines[i].wordCollection[ii].bounds.centerRight);
-                    lines[index].last.line.add(Offset(newendtSelectTextPoint.dx, filterdLines[i].wordCollection[ii].bounds.centerRight.dy));
-                    result += filterdLines[i].wordCollection[ii].text;
-                  }else if(i != 0 && i != filterdLines.length - 1){
-                    lines[index].last.line.add(filterdLines[i].wordCollection[ii].bounds.centerLeft);
-                    lines[index].last.line.add(filterdLines[i].wordCollection[ii].bounds.centerRight);
-                    result += filterdLines[i].wordCollection[ii].text;
-                  }
+                if(i%2==0){
+                  ///выделяем с лева на право
+                  for(int ii =0; ii < filterdLines[i].wordCollection.length; ii++){
+                    if(i == 0 && filterdLines[i].wordCollection[ii].bounds.left >= newstartSelectTextPoint.dx){
+                      lines[index].last.line.add(Offset(newstartSelectTextPoint.dx, filterdLines[i].wordCollection[ii].bounds.centerLeft.dy));
+                      lines[index].last.line.add(filterdLines[i].wordCollection[ii].bounds.centerLeft);
+                      lines[index].last.line.add(filterdLines[i].wordCollection[ii].bounds.centerRight);
+                      if( !selectedFragments[visiblyPage].contains(filterdLines[i].wordCollection[ii - 1].bounds)) selectedFragments[visiblyPage].add(filterdLines[i].wordCollection[ii-1].bounds);
+                     if( !selectedFragments[visiblyPage].contains(filterdLines[i].wordCollection[ii].bounds)) selectedFragments[visiblyPage].add(filterdLines[i].wordCollection[ii].bounds);
+                      //result += filterdLines[i].wordCollection[ii].text;
+                    }else if( i == filterdLines.length - 1 && filterdLines[i].wordCollection[ii].bounds.right <= newendtSelectTextPoint.dx){
+                      lines[index].last.line.add(filterdLines[i].wordCollection[ii].bounds.centerLeft);
+                      lines[index].last.line.add(filterdLines[i].wordCollection[ii].bounds.centerRight);
+                      lines[index].last.line.add(Offset(newendtSelectTextPoint.dx, filterdLines[i].wordCollection[ii].bounds.centerRight.dy));
+                      //if( !selectedFragments[visiblyPage].contains(filterdLines[i].wordCollection[ii - 1].bounds))selectedFragments[visiblyPage].add(filterdLines[i].wordCollection[ii-1].bounds);
+                      if( !selectedFragments[visiblyPage].contains(filterdLines[i].wordCollection[ii].bounds))selectedFragments[visiblyPage].add(filterdLines[i].wordCollection[ii].bounds);
+                      //result += filterdLines[i].wordCollection[ii].text;
+                    }else if(i != 0 && i != filterdLines.length - 1){
+                      lines[index].last.line.add(filterdLines[i].wordCollection[ii].bounds.centerLeft);
+                      lines[index].last.line.add(filterdLines[i].wordCollection[ii].bounds.centerRight);
+                      if( !selectedFragments[visiblyPage].contains(filterdLines[i].wordCollection[ii].bounds))selectedFragments[visiblyPage].add(filterdLines[i].wordCollection[ii].bounds);
+                      //result += filterdLines[i].wordCollection[ii].text;
+                    }
 
+                  }
+                }else{
+                  ///начинаем выделять наоборот
+                  for(int ii = filterdLines[i].wordCollection.length - 1; ii >0; ii--){
+                    if(i == 0 && filterdLines[i].wordCollection[ii].bounds.left >= newstartSelectTextPoint.dx){
+                      lines[index].last.line.add(Offset(newstartSelectTextPoint.dx, filterdLines[i].wordCollection[ii].bounds.centerLeft.dy));
+                      lines[index].last.line.add(filterdLines[i].wordCollection[ii].bounds.centerLeft);
+                      lines[index].last.line.add(filterdLines[i].wordCollection[ii].bounds.centerRight);
+                      if( !selectedFragments[visiblyPage].contains(filterdLines[i].wordCollection[ii - 1].bounds))selectedFragments[visiblyPage].add(filterdLines[i].wordCollection[ii-1].bounds);
+                      if( !selectedFragments[visiblyPage].contains(filterdLines[i].wordCollection[ii].bounds))selectedFragments[visiblyPage].add(filterdLines[i].wordCollection[ii].bounds);
+                      //result += filterdLines[i].wordCollection[ii].text;
+                    }else if( i == filterdLines.length - 1 && filterdLines[i].wordCollection[ii].bounds.right <= newendtSelectTextPoint.dx){
+                      lines[index].last.line.add(filterdLines[i].wordCollection[ii].bounds.centerLeft);
+                      lines[index].last.line.add(filterdLines[i].wordCollection[ii].bounds.centerRight);
+                      lines[index].last.line.add(Offset(newendtSelectTextPoint.dx, filterdLines[i].wordCollection[ii].bounds.centerRight.dy));
+                      if( !selectedFragments[visiblyPage].contains(filterdLines[i].wordCollection[ii - 1].bounds))selectedFragments[visiblyPage].add(filterdLines[i].wordCollection[ii-1].bounds);
+                      if( !selectedFragments[visiblyPage].contains(filterdLines[i].wordCollection[ii].bounds))selectedFragments[visiblyPage].add(filterdLines[i].wordCollection[ii].bounds);
+                      //result += filterdLines[i].wordCollection[ii].text;
+                    }else if(i != 0 && i != filterdLines.length - 1){
+                      lines[index].last.line.add(filterdLines[i].wordCollection[ii].bounds.centerLeft);
+                      lines[index].last.line.add(filterdLines[i].wordCollection[ii].bounds.centerRight);
+                      if( !selectedFragments[visiblyPage].contains(filterdLines[i].wordCollection[ii - 1].bounds))selectedFragments[visiblyPage].add(filterdLines[i].wordCollection[ii-1].bounds);
+                      if( !selectedFragments[visiblyPage].contains(filterdLines[i].wordCollection[ii].bounds))selectedFragments[visiblyPage].add(filterdLines[i].wordCollection[ii].bounds);
+                      //result += filterdLines[i].wordCollection[ii].text;
+                    }
+
+                  }
                 }
+
               }
-              print(result);
+
             }
 
 
-            // final calculated = textLines[visiblyPage].where((el) => current.dy.clamp(el.bounds.top * aspectCoefY, el.bounds.bottom * aspectCoefY) == current.dy).toList();
-            // ///рисуем прямую при условии, что есть текст
-            // if(calculated.isNotEmpty){
-            //   if(yLine == -1){
-            //     yLine = calculated.map((e) => e.bounds.centerLeft.dy * aspectCoefY).last;
-            //   }
-            //   //print(calculated.map((e) => e.text).last);
-            //   lines[index].last.text = calculated.map((e) => e.text).last;
-            //   lines[index].last.line.add(Offset(x, yLine ));
-            // }
-            //final selectedWords = textLines[visiblyPage].map((string) => string.wordCollection.where((word) => word.bounds.contains(current)).toList());
-            //print(selectedWords.where((element) => element.isNotEmpty).toList().last.last.text);
-
-
-
-            ///убираем линии, которые теперь не нужны, так как мышка могла вверх начать выделять, а не в низ.
-            // if(selectedFragments[visiblyPage].isNotEmpty){
-            //   selectedFragments[visiblyPage].removeWhere((element) => element.bottom > (endtSelectTextPoint.dy * aspectCoefY));
-            // }
-            //
-            // if(selectedFragments[visiblyPage].length > 1){
-            //   ///добавляем строки, которые должны влететь целиком ,если выделено более 2-ч строк
-            //   for(int x = 0; x < textLines[visiblyPage].length; x++){
-            //     //print('${textLines[visiblyPage][x].bounds.top} > ${selectedFragments[visiblyPage].first.bottom} && ${textLines[visiblyPage][x].bounds.bottom} < ${selectedFragments[visiblyPage].last.top}');
-            //     if(
-            //     textLines[visiblyPage][x].bounds.top > selectedFragments[visiblyPage].first.bottom
-            //         || textLines[visiblyPage][x].bounds.bottom < selectedFragments[visiblyPage].last.top
-            //
-            //     ){
-            //
-            //       print(textLines[visiblyPage][x].bounds);
-            //       selectedFragments[visiblyPage].add(textLines[visiblyPage][x].bounds);
-            //     }
-            //   }
-            // }
-            //
-            // ///теперь надо пределиться что больше что меньше т.к. мышь могла пойти вверх и выделять надо начать вверх теперь
-            // Offset newstartSelectTextPoint = const Offset(0.0,0.0);
-            // Offset newendtSelectTextPoint = const Offset(0.0,0.0);
-            // if(startSelectTextPoint.dy < endtSelectTextPoint.dy){
-            //   newstartSelectTextPoint = startSelectTextPoint;
-            //   newendtSelectTextPoint = endtSelectTextPoint;
-            // }else{
-            //   newstartSelectTextPoint = endtSelectTextPoint;
-            //   newendtSelectTextPoint = startSelectTextPoint;
-            // }
-            //
-            //
-            //
-            // Rect selectedBound = Offset(newstartSelectTextPoint.dx * aspectCoefX, newstartSelectTextPoint.dy * aspectCoefY) & Size(((newendtSelectTextPoint.dx * aspectCoefX) - (newstartSelectTextPoint.dx  * aspectCoefX)).abs(), ((newendtSelectTextPoint.dy * aspectCoefY) - (newstartSelectTextPoint.dy * aspectCoefY)).abs());
-            //
-            // for(int i = 0; i < textLines[visiblyPage].length; i++){
-            //   for(int ii = 0; ii < textLines[visiblyPage][i].wordCollection.length; ii++){
-            //     if(selectedBound.contains(textLines[visiblyPage][i].wordCollection[ii].bounds.topLeft)
-            //         && selectedBound.contains(textLines[visiblyPage][i].wordCollection[ii].bounds.bottomRight)
-            //         && !selectedFragments[visiblyPage].contains(textLines[visiblyPage][i].wordCollection[ii].bounds)
-            //     ) {
-            //       selectedFragments[visiblyPage].add(textLines[visiblyPage][i].wordCollection[ii].bounds);
-            //     }
-            //   }
-            // }
-
           }
         }else{
+          if(lines[index].isEmpty){
+            lines[index].add(DrawLineItem(subject: mode.name));
+          }
           ///просто рисуем кривую
           lines[index].last.line.add(Offset(x, y));
         }
@@ -548,6 +535,7 @@ class LoadPdf{
     }
 
     bool reload = false;
+    bool blockScroll = false;
 
     ///определяем количество страниц в документе
     return FutureBuilder<int>(
@@ -568,7 +556,7 @@ class LoadPdf{
           }
 
 
-          List<Widget> _children = List.generate(count, (index) => index == 0 || (index > 0 && oldListPaths[index-1].isNotEmpty) || visiblyPage == index ? FutureBuilder<List<Uint8List>>(
+          List<Widget> _children = List.generate(count, (index) => index == 0 || /*(index > 0 && oldListPaths[index-1].isNotEmpty) ||*/ visiblyPage == index ? FutureBuilder<List<Uint8List>>(
               future:
               reload || oldListPaths[index].isEmpty ?
               loadAssetAll(pathPdf: pathPdf, annotations: annotations, bookmarks: bookmarks, width: width, height: height, zoom: zoom, page: index)
@@ -587,9 +575,9 @@ class LoadPdf{
                   return  StatefulBuilder(
                       builder: (BuildContext context, StateSetter setState)=> Center(
                           child: GestureDetector(
+
                               onTap: () => onTap(index),
-                              onPanStart: (v) =>
-                                  onPanStart(v, index, setState),
+                              onPanStart: (v) => onPanStart(v, index, setState),
                               onPanEnd: (v) => onPanEnd(v, index, setState),
                               onPanUpdate: (details) =>
                                   onPanUpdate(details, index, setState),
@@ -604,9 +592,19 @@ class LoadPdf{
                                               5, 5, 5, 5),
                                           child: Stack(
                                               children: [
-                                                Image.memory(
+                                          // PinchZoomReleaseUnzoomWidget(
+                                          //   twoFingersOn: () => setState(() => blockScroll = true),
+                                          //   twoFingersOff: () => Future.delayed(
+                                          //     PinchZoomReleaseUnzoomWidget.defaultResetDuration,
+                                          //         () => setState(() => blockScroll = false),
+                                          //   ),
+                                          // fingersRequiredToPinch: 2,
+                                          // child:
+                                          Image.memory(
                                                   _snapshot.data!.first,
+                                                  //scale: 1,
                                                 ),
+                                         // ),
                                                 ///рисуем выделения найденого текста
                                                 ...findedFragments.where((el) => el.pageIndex == index).toList().map((e) => Positioned(
                                                     top:e.bounds!.top * aspectCoefY,
@@ -621,7 +619,7 @@ class LoadPdf{
                                                     top:e.top * aspectCoefY,
                                                     left: e.left * aspectCoefX,
                                                     child: Container(
-                                                      color: Colors.red.withOpacity(0.7),
+                                                      color: Colors.orange.withOpacity(0.3),
                                                       width: (e.width > 0 ? e.width : 30) * aspectCoefX,
                                                       height: e.height * aspectCoefY,
                                                     ))).toList(),
@@ -638,13 +636,13 @@ class LoadPdf{
                                                   )).toList(),
                                                 ///рисуем нарисованную аннотацию как затычку
                                                 ...lines[index].map((e)=>FingerPaint(line:  e.line, mode: AnnotState.values.firstWhere((el) => el.name == e.subject)/*mode == AnnotState.erase ? AnnotState.freeForm : mode*/, color: e.color, thickness: e.thickness, )).toList(),
-                                                // ...annotations!.where((element) =>
-                                                // element.page == index)
-                                                //     .toList().map((e){
-                                                //   e.aspectCoefX = aspectCoefX;
-                                                //   e.aspectCoefY = aspectCoefY;
-                                                //   return FingerPaint(line: e.points.map((p) => Offset(p.x  * aspectCoefX, p.y  * aspectCoefY)).toList(), mode: e.subject == 'selectText' ? AnnotState.selectText : AnnotState.freeForm, color: Color(e.color!.toInt())      , thickness: e.border!.width, );
-                                                // }).toList(),
+                                                ...annotations!.where((element) =>
+                                                element.page == index)
+                                                    .toList().map((e){
+                                                  e.aspectCoefX = aspectCoefX;
+                                                  e.aspectCoefY = aspectCoefY;
+                                                  return FingerPaint(line: e.points.map((p) => Offset(p.x  * aspectCoefX, p.y  * aspectCoefY)).toList(), mode: e.subject == 'selectText' ? AnnotState.selectText : AnnotState.freeForm, color: Color(e.color!.toInt())      , thickness: e.border!.width, );
+                                                }).toList(),
                                                 ///интегрируется виджет области аннотации
                                                 // ...annotations.where((element) =>
                                                 // element.page == index)
@@ -689,7 +687,7 @@ class LoadPdf{
           );
 
           return SingleChildScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
+              physics: blockScroll == false ? const AlwaysScrollableScrollPhysics() : NeverScrollableScrollPhysics(),
               scrollDirection: scrollDirection!,
               controller: scrollController,
               child: Column(

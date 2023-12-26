@@ -46,7 +46,7 @@ class ManageAnnotButtonsState extends State<ManageAnnotButtons> {
 
   BoxConstraints constraints = const BoxConstraints(minWidth: 40.0, minHeight: 40.0, maxWidth: 40.0, maxHeight: 40.0);
 
-  ///TODO добавить возможность подставлять пользовательский выджет
+  ///TODO добавить возможность подставлять пользовательский виджет
 
   @override
   Widget build(BuildContext context) {
