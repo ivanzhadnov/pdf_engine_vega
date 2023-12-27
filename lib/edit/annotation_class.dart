@@ -249,11 +249,11 @@ Function tapFunction = (){
             width: width * aspectCoefX,
             //color: widgetTaped ? Material.Colors.red.withOpacity(0.5) : Material.Colors.green.withOpacity(0.5)
             alignment: Material.Alignment.topLeft,
-            color: Material.Colors.transparent,
-              child: points.isNotEmpty && subject == 'selectText' ? Material.GestureDetector(
-                onTap: tapFunction(),
-                child: tap,
-          ) : null,
+            color: Material.Colors.red.withOpacity(0.3),
+          //     child: points.isNotEmpty && subject == 'selectText' ? Material.GestureDetector(
+          //       onTap: tapFunction(),
+          //       child: tap,
+          // ) : null,
           ),
        // ),
       );

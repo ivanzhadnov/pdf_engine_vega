@@ -412,7 +412,7 @@ class LoadPdf{
         }
         if(mode == AnnotState.selectText){
           endtSelectTextPoint = current;
-          if(textLines[visiblyPage].isNotEmpty){
+          if(textLines[visiblyPage].isNotEmpty && lines[index].isNotEmpty){
             lines[index].last.subject = 'selectText';
             lines[index].last.line = [];
            ///создаем массив из текслиний которые между началом и концом курсора по высоте
@@ -493,7 +493,7 @@ class LoadPdf{
                 }
 
               }
-              print(result);
+              //print(result);
               lines[index].last.text = result;
             }
 
@@ -657,7 +657,7 @@ class LoadPdf{
                                                     .toList().map((e){
                                                   e.aspectCoefX = aspectCoefX;
                                                   e.aspectCoefY = aspectCoefY;
-                                                  return FingerPaint(line: e.points.map((p) => Offset(p.x  * aspectCoefX, p.y  * aspectCoefY)).toList(), mode: e.subject == 'selectText' ? AnnotState.selectText : AnnotState.freeForm, color: Color(e.color!.toInt())      , thickness: e.border!.width, );
+                                                  return FingerPaint(line: e.points.map((p) => Offset(p.x  * aspectCoefX, p.y  * aspectCoefY)).toList(), mode: e.subject == 'selectText' ? AnnotState.selectText : AnnotState.freeForm, color: Color(e.color!.toInt()) , thickness: e.border!.width, );
                                                 }).toList(),
                                                 ///интегрируется виджет области аннотации
                                                 // ...annotations.where((element) =>
@@ -713,6 +713,11 @@ class LoadPdf{
           );
         });
   }
+
+  getBlocks(int page, annotations){
+
+  }
+
 }
 
 extension Unique<E, Id> on List<E> {
