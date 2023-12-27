@@ -342,7 +342,41 @@ class LoadPdf{
       ///зафиксировали начало выделения текста
       startSelectTextPoint = v.localPosition;
 
-      if(mode == AnnotState.selectText || mode == AnnotState.freeForm){
+      // if(mode == AnnotState.selectText || mode == AnnotState.freeForm){
+      //   if(lines[index].isNotEmpty){
+      //     final color = lines[index].last.color;
+      //     final thicknes = lines[index].last.thickness;
+      //     lines[index].add(DrawLineItem(subject: mode.name));
+      //     lines[index].last.color = color;
+      //     lines[index].last.thickness = thicknes;
+      //   }else{
+      //     lines[index].add(DrawLineItem(subject: mode.name));
+      //   }
+      //
+      //   yLine = -1;
+      //   setState((){});
+      // }else
+        if(mode == AnnotState.erase){
+        erasePositions[index].add([]);
+        setState((){});
+      }
+    }
+    ///обработка завершения рисования линии и подготовка новой линии
+    void onPanEnd(v, int index, setState){
+      ///формируем ровную и без лишних точек линию выделения текста, так эстетичнее и уменьшается нагрузка
+      // if(mode == AnnotState.selectText){
+      //   // if(lines[index].last.line.isNotEmpty){
+      //   //   final temp = lines[index].last.line;
+      //   //   lines[index].last.line = [temp.first, temp.last];
+      //   //   setState((){});
+      //   //   try{
+      //   //     func();
+      //   //   }catch(e){}
+      //   // }
+      // }else
+        if(mode == AnnotState.erase){
+        erasePositions[index] = [];
+      }else if(mode == AnnotState.selectText || mode == AnnotState.freeForm){
         if(lines[index].isNotEmpty){
           final color = lines[index].last.color;
           final thicknes = lines[index].last.thickness;
@@ -355,25 +389,6 @@ class LoadPdf{
 
         yLine = -1;
         setState((){});
-      }else if(mode == AnnotState.erase){
-        erasePositions[index].add([]);
-        setState((){});
-      }
-    }
-    ///обработка завершения рисования линии и подготовка новой линии
-    void onPanEnd(v, int index, setState){
-      ///формируем ровную и без лишних точек линию выделения текста, так эстетичнее и уменьшается нагрузка
-      if(mode == AnnotState.selectText){
-        // if(lines[index].last.line.isNotEmpty){
-        //   final temp = lines[index].last.line;
-        //   lines[index].last.line = [temp.first, temp.last];
-        //   setState((){});
-        //   try{
-        //     func();
-        //   }catch(e){}
-        // }
-      }else if(mode == AnnotState.erase){
-        erasePositions[index] = [];
       }
     }
     ///обработка рисования
