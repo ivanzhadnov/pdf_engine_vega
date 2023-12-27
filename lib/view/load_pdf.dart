@@ -433,19 +433,19 @@ class LoadPdf{
                       lines[index].last.line.add(filterdLines[i].wordCollection[ii].bounds.centerRight);
                       if( !selectedFragments[visiblyPage].contains(filterdLines[i].wordCollection[ii - 1].bounds)) selectedFragments[visiblyPage].add(filterdLines[i].wordCollection[ii-1].bounds);
                      if( !selectedFragments[visiblyPage].contains(filterdLines[i].wordCollection[ii].bounds)) selectedFragments[visiblyPage].add(filterdLines[i].wordCollection[ii].bounds);
-                      //result += filterdLines[i].wordCollection[ii].text;
+                      result += filterdLines[i].wordCollection[ii].text;
                     }else if( i == filterdLines.length - 1 && filterdLines[i].wordCollection[ii].bounds.right <= newendtSelectTextPoint.dx){
                       lines[index].last.line.add(filterdLines[i].wordCollection[ii].bounds.centerLeft);
                       lines[index].last.line.add(filterdLines[i].wordCollection[ii].bounds.centerRight);
                       lines[index].last.line.add(Offset(newendtSelectTextPoint.dx, filterdLines[i].wordCollection[ii].bounds.centerRight.dy));
                       //if( !selectedFragments[visiblyPage].contains(filterdLines[i].wordCollection[ii - 1].bounds))selectedFragments[visiblyPage].add(filterdLines[i].wordCollection[ii-1].bounds);
                       if( !selectedFragments[visiblyPage].contains(filterdLines[i].wordCollection[ii].bounds))selectedFragments[visiblyPage].add(filterdLines[i].wordCollection[ii].bounds);
-                      //result += filterdLines[i].wordCollection[ii].text;
+                      result += filterdLines[i].wordCollection[ii].text;
                     }else if(i != 0 && i != filterdLines.length - 1){
                       lines[index].last.line.add(filterdLines[i].wordCollection[ii].bounds.centerLeft);
                       lines[index].last.line.add(filterdLines[i].wordCollection[ii].bounds.centerRight);
                       if( !selectedFragments[visiblyPage].contains(filterdLines[i].wordCollection[ii].bounds))selectedFragments[visiblyPage].add(filterdLines[i].wordCollection[ii].bounds);
-                      //result += filterdLines[i].wordCollection[ii].text;
+                      result += filterdLines[i].wordCollection[ii].text;
                     }
 
                   }
@@ -458,27 +458,28 @@ class LoadPdf{
                       lines[index].last.line.add(filterdLines[i].wordCollection[ii].bounds.centerRight);
                       if( !selectedFragments[visiblyPage].contains(filterdLines[i].wordCollection[ii - 1].bounds))selectedFragments[visiblyPage].add(filterdLines[i].wordCollection[ii-1].bounds);
                       if( !selectedFragments[visiblyPage].contains(filterdLines[i].wordCollection[ii].bounds))selectedFragments[visiblyPage].add(filterdLines[i].wordCollection[ii].bounds);
-                      //result += filterdLines[i].wordCollection[ii].text;
+                      result += filterdLines[i].wordCollection[ii].text;
                     }else if( i == filterdLines.length - 1 && filterdLines[i].wordCollection[ii].bounds.right <= newendtSelectTextPoint.dx){
                       lines[index].last.line.add(filterdLines[i].wordCollection[ii].bounds.centerLeft);
                       lines[index].last.line.add(filterdLines[i].wordCollection[ii].bounds.centerRight);
                       lines[index].last.line.add(Offset(newendtSelectTextPoint.dx, filterdLines[i].wordCollection[ii].bounds.centerRight.dy));
                       if( !selectedFragments[visiblyPage].contains(filterdLines[i].wordCollection[ii - 1].bounds))selectedFragments[visiblyPage].add(filterdLines[i].wordCollection[ii-1].bounds);
                       if( !selectedFragments[visiblyPage].contains(filterdLines[i].wordCollection[ii].bounds))selectedFragments[visiblyPage].add(filterdLines[i].wordCollection[ii].bounds);
-                      //result += filterdLines[i].wordCollection[ii].text;
+                      result += filterdLines[i].wordCollection[ii].text;
                     }else if(i != 0 && i != filterdLines.length - 1){
                       lines[index].last.line.add(filterdLines[i].wordCollection[ii].bounds.centerLeft);
                       lines[index].last.line.add(filterdLines[i].wordCollection[ii].bounds.centerRight);
                       if( !selectedFragments[visiblyPage].contains(filterdLines[i].wordCollection[ii - 1].bounds))selectedFragments[visiblyPage].add(filterdLines[i].wordCollection[ii-1].bounds);
                       if( !selectedFragments[visiblyPage].contains(filterdLines[i].wordCollection[ii].bounds))selectedFragments[visiblyPage].add(filterdLines[i].wordCollection[ii].bounds);
-                      //result += filterdLines[i].wordCollection[ii].text;
+                      result += filterdLines[i].wordCollection[ii].text;
                     }
 
                   }
                 }
 
               }
-
+              print(result);
+              lines[index].last.text = result;
             }
 
 
