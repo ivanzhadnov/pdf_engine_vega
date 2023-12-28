@@ -10,10 +10,12 @@ class DrawLineItem{
   Color undoColor = Colors.blue;
   double undoThickness = 4.0;
   String text = '';
-  ///мы ткт указываем выделение текста это или рисование карандашем
+  ///мы тyт указываем выделение текста это или рисование карандашем
   String subject;
+  String uuid;
   DrawLineItem({
-    required this.subject
+    required this.subject,
+    required this.uuid
 });
 
   toJson(){
@@ -21,7 +23,8 @@ class DrawLineItem{
       "color" : color,
       "thickness" : thickness,
       "line" : line,
-      "subject" : subject
+      "subject" : subject,
+      "uuid" : uuid
     };
   }
 }

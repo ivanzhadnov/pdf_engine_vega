@@ -13,6 +13,7 @@ import 'package:pdfx/pdfx.dart';
 import 'package:pinch_zoom_release_unzoom/pinch_zoom_release_unzoom.dart';
 import 'package:syncfusion_flutter_pdf/pdf.dart' as sf;
 import 'package:system_info2/system_info2.dart';
+import 'package:uuid/uuid.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
 import '../edit/annot_buttons.dart';
@@ -255,6 +256,7 @@ class LoadPdf{
 
   String oldPath = '';
   List<Uint8List> oldListPaths = [];
+  String selectedUuid = '';
 
 
 
@@ -355,11 +357,11 @@ class LoadPdf{
         if(lines[index].isNotEmpty){
           final color = lines[index].last.color;
           final thicknes = lines[index].last.thickness;
-          lines[index].add(DrawLineItem(subject: mode.name));
+          lines[index].add(DrawLineItem(subject: mode.name, uuid: Uuid().v4()));
           lines[index].last.color = color;
           lines[index].last.thickness = thicknes;
         }else{
-          lines[index].add(DrawLineItem(subject: mode.name));
+          lines[index].add(DrawLineItem(subject: mode.name, uuid: Uuid().v4()));
         }
 
         yLine = -1;
@@ -410,7 +412,7 @@ class LoadPdf{
             }
 
             if(filterdLines.isNotEmpty){
-              String result = '';
+              //String result = '';
               selectedFragments[visiblyPage] = [];
               for(int i =0; i < filterdLines.length; i++){
                // if(i%2==0){
@@ -419,19 +421,19 @@ class LoadPdf{
                     if(i == 0 && filterdLines[i].wordCollection[ii].bounds.left >= newstartSelectTextPoint.dx){
                       if( !selectedFragments[visiblyPage].contains(filterdLines[i].wordCollection[ii - 1].bounds)) selectedFragments[visiblyPage].add(filterdLines[i].wordCollection[ii-1].bounds);
                      if( !selectedFragments[visiblyPage].contains(filterdLines[i].wordCollection[ii].bounds)) selectedFragments[visiblyPage].add(filterdLines[i].wordCollection[ii].bounds);
-                      result += filterdLines[i].wordCollection[ii].text;
+                      //result += filterdLines[i].wordCollection[ii].text;
                     }else if( i == filterdLines.length - 1 && filterdLines[i].wordCollection[ii].bounds.right <= newendtSelectTextPoint.dx){
                       if( !selectedFragments[visiblyPage].contains(filterdLines[i].wordCollection[ii].bounds))selectedFragments[visiblyPage].add(filterdLines[i].wordCollection[ii].bounds);
-                      result += filterdLines[i].wordCollection[ii].text;
+                      //result += filterdLines[i].wordCollection[ii].text;
                     }else if(i != 0 && i != filterdLines.length - 1){
                       if( !selectedFragments[visiblyPage].contains(filterdLines[i].wordCollection[ii].bounds))selectedFragments[visiblyPage].add(filterdLines[i].wordCollection[ii].bounds);
-                      result += filterdLines[i].wordCollection[ii].text;
+                      //result += filterdLines[i].wordCollection[ii].text;
                     }
 
                   }
 
               }
-              lines[index].last.text = result;
+              //lines[index].last.text = result;
 for(int i = 0; i < selectedFragments[visiblyPage].length; i++){
   if(i == 0){
     lines[index].last.line.add(selectedFragments[visiblyPage][i].bottomLeft);
@@ -451,27 +453,23 @@ for(int i = 0; i < selectedFragments[visiblyPage].length; i++){
 }
 
               for(int i = selectedFragments[visiblyPage].length -1; i > 0; i--){
-                if(i == selectedFragments[visiblyPage].length -1){
-
-                }
+                if(i == selectedFragments[visiblyPage].length -1){}
                 ///находим координаты углов конца строки и координаты углов начала следующей строки
                 else if(selectedFragments[visiblyPage][i].top != selectedFragments[visiblyPage][i - 1].top){
                   lines[index].last.line.add(selectedFragments[visiblyPage][i].bottomLeft);
                   lines[index].last.line.add(selectedFragments[visiblyPage][i].topLeft);
                 }
                 ///печатаем край последней строки
-                else if(i == 0){
-                }
+                else if(i == 0){}
               }
               lines[index].last.line.add(Offset(selectedFragments[visiblyPage][0].left, lines[index].last.line.last.dy ));
               lines[index].last.line.add(selectedFragments[visiblyPage][0].bottomLeft,);
             }
 
-
           }
         }else{
           if(lines[index].isEmpty){
-            lines[index].add(DrawLineItem(subject: mode.name));
+            lines[index].add(DrawLineItem(subject: mode.name, uuid: Uuid().v4()));
           }
           ///просто рисуем кривую
           lines[index].last.line.add(Offset(x, y));
@@ -489,15 +487,15 @@ for(int i = 0; i < selectedFragments[visiblyPage].length; i++){
                   y: point.dy,
                   centerX: erasePosition.dx,
                   centerY: erasePosition.dy,
-                  radius: eraseRadius)).toList();
+                  radius: eraseRadius) && lines[index][i].subject != "selectText").toList();
           if(pointsToDelete.isNotEmpty){
             ///края по которым будем рвать массив линии на два новых массива
             Offset pointsToGap = pointsToDelete.last;
             pointsToDelete.removeLast();
             lines[index][i].line.removeWhere((point) => pointsToDelete.contains(point));
             int splitIndex = lines[index][i].line.indexWhere((element) => element == pointsToGap);
-            final tmpFirst = DrawLineItem(subject: lines[index][i].subject)..color = lines[index][i].color..thickness=lines[index][i].thickness..undoLine=lines[index][i].undoLine..undoColor=lines[index][i].undoColor..undoThickness=lines[index][i].undoThickness;
-            final tmpSecond = DrawLineItem(subject: lines[index][i].subject)..color = lines[index][i].color..thickness=lines[index][i].thickness..undoLine=lines[index][i].undoLine..undoColor=lines[index][i].undoColor..undoThickness=lines[index][i].undoThickness;
+            final tmpFirst = DrawLineItem(uuid: lines[index][i].uuid, subject: lines[index][i].subject)..color = lines[index][i].color..thickness=lines[index][i].thickness..undoLine=lines[index][i].undoLine..undoColor=lines[index][i].undoColor..undoThickness=lines[index][i].undoThickness;
+            final tmpSecond = DrawLineItem(uuid: lines[index][i].uuid, subject: lines[index][i].subject)..color = lines[index][i].color..thickness=lines[index][i].thickness..undoLine=lines[index][i].undoLine..undoColor=lines[index][i].undoColor..undoThickness=lines[index][i].undoThickness;
             tmpFirst.line = lines[index][i].line.map((e) => e).toList().sublist(0, splitIndex);
             tmpSecond.line = lines[index][i].line.map((e) => e).toList().sublist(splitIndex);
             brokenLists..add(tmpFirst)..add(tmpSecond);
@@ -629,6 +627,15 @@ for(int i = 0; i < selectedFragments[visiblyPage].length; i++){
                                                   e.aspectCoefY = aspectCoefY;
                                                   return FingerPaint(line: e.points.map((p) => Offset(p.x  * aspectCoefX, p.y  * aspectCoefY)).toList(), mode: e.subject == 'selectText' ? AnnotState.selectText : AnnotState.freeForm, color: Color(e.color!.toInt()) , thickness: e.border!.width, );
                                                 }).toList(),
+                                                ///рисуем обводку у выделлной аннотации
+                                                ...annotations.where((element) =>
+                                                element.uuid == selectedUuid)
+                                                    .toList().map((e){
+                                                  e.aspectCoefX = aspectCoefX;
+                                                  e.aspectCoefY = aspectCoefY;
+                                                  return FingerPaint(line: e.points.map((p) => Offset(p.x  * aspectCoefX, p.y  * aspectCoefY)).toList(), mode: AnnotState.freeForm, color: Colors.orangeAccent , thickness: 4, );
+                                                }).toList(),
+
                                                 ///интегрируется виджет области аннотации
                                                 // ...annotations.where((element) =>
                                                 // element.page == index)

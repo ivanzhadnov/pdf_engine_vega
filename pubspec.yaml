@@ -1,6 +1,6 @@
 name: pdf_engine_vega
 description: Плагин для В небо с возможностью создания, редактирования и отображения PDF файлов
-version: 0.0.52
+version: 0.0.53
 homepage: https://koldashev.ru
 
 environment:
@@ -26,11 +26,14 @@ dependencies:
       ref: 8b105a7dfc6b90220c1d79fcb805fb764cab00c5
       path: packages/pdfx
   pinch_zoom_release_unzoom: ^0.0.10
+  uuid: ^4.2.1
+
+
 
 
 dev_dependencies:
-  flutter_test:
-    sdk: flutter
+  #flutter_test:
+  #  sdk: flutter
   flutter_lints: ^2.0.0
 
 # For information on the generic Dart part of this file, see the
