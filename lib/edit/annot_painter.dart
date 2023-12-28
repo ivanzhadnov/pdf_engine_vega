@@ -69,10 +69,31 @@ class MyPainter extends CustomPainter {
     final points = line;
     final paint = Paint()
       //..color = colors[_random.nextInt(colors.length)]
-      ..color = mode == AnnotState.freeForm ? color : mode == AnnotState.erase ? Colors.white : colors[4].withOpacity(0.2)
-      ..strokeWidth = mode == AnnotState.freeForm ? thickness : 12
+      ..color = mode == AnnotState.freeForm ? color : mode == AnnotState.erase ? Colors.white : colors[1].withOpacity(0.2)
+      ..strokeWidth = mode == AnnotState.freeForm ? thickness : 2
+      //..strokeJoin = StrokeJoin.round
+      //..style = PaintingStyle.fill
       ..strokeCap = mode == AnnotState.freeForm ? StrokeCap.round : StrokeCap.square;
-    canvas.drawPoints(pointMode, points, paint);
+    if(mode != AnnotState.selectText){
+      canvas.drawPoints(pointMode, points, paint);
+    }else{
+      var path = Path();
+      if(points.isNotEmpty){
+        path.moveTo(points.first.dx, points.first.dy,);
+
+        for (int i = 1; i < points.length; i++) {
+          double x = points[i].dx;
+          double y = points[i].dy;
+          path.lineTo(x, y);
+        }
+        path.close();
+      }
+
+      canvas.drawPath(path, paint);
+    }
+
+
+
   }
 
   @override

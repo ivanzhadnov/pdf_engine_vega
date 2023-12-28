@@ -160,14 +160,22 @@ Future<String> syficionAddAnnotation({required String pathPdf, int? page, List<A
           ///Add select text annotation
           if(page == null || annotations[i].page == page){
             document.pages[annotations[i].page].graphics
-              ..setTransparency(0.5, alphaBrush: 0.5, mode: PdfBlendMode.hardLight)
-              ..drawPath(
-                PdfPath()
-                  ..addPath([
-                    ...annotations[i].points.map((e) => Offset(e.x, e.y)).toList().cast<Offset>()
-                  ], [0,...annotations[i].points.map((e) => 1).toList().cast<int>()..removeLast()]),
-                pen: PdfPen.fromBrush(PdfBrushes.blue, width: 10, dashStyle: PdfDashStyle.dashDotDot, lineCap: PdfLineCap.square, lineJoin: PdfLineJoin.round ),
-              );
+              ..setTransparency(0.2, alphaBrush: 0.5, mode: PdfBlendMode.hardLight)
+              ..drawPolygon(
+                annotations[i].points.map((e) => Offset(e.x, e.y)).toList().cast<Offset>(),
+                  //pen: PdfPen.fromBrush(PdfBrushes.blue, width: 10, dashStyle: PdfDashStyle.dashDotDot, lineCap: PdfLineCap.square, lineJoin: PdfLineJoin.round ),
+                brush: PdfBrushes.orange
+              )
+
+
+              // ..drawPath(
+              //   PdfPath()
+              //     ..addPath([
+              //       ...annotations[i].points.map((e) => Offset(e.x, e.y)).toList().cast<Offset>()
+              //     ], [0,...annotations[i].points.map((e) => 1).toList().cast<int>()..removeLast()]),
+              //   pen: PdfPen.fromBrush(PdfBrushes.blue, width: 10, dashStyle: PdfDashStyle.dashDotDot, lineCap: PdfLineCap.square, lineJoin: PdfLineJoin.round ),
+              // )
+            ;
           }
 
         }else{
