@@ -69,7 +69,7 @@ class MyPainter extends CustomPainter {
     final points = line;
     final paint = Paint()
       //..color = colors[_random.nextInt(colors.length)]
-      ..color = mode == AnnotState.freeForm ? color : mode == AnnotState.erase ? Colors.white : colors[1].withOpacity(0.2)
+      ..color = mode == AnnotState.freeForm ? color : mode == AnnotState.erase ? Colors.white : color.withOpacity(0.2)
       ..strokeWidth = mode == AnnotState.freeForm ? thickness : 2
       //..strokeJoin = StrokeJoin.round
       //..style = PaintingStyle.fill
