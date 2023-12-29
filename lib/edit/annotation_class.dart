@@ -53,10 +53,6 @@ class AnnotationItem{
   double aspectCoefY = 1;
   double aspectCoefX = 1;
 
-Material.Widget? tap = Material.Icon(CupertinoIcons.square_pencil, color: Material.Colors.black);
-Function tapFunction = (){
-  print(666);
-};
 
   AnnotationItem({
     required this.page,
@@ -237,23 +233,137 @@ Function tapFunction = (){
       return Material.Positioned(
         top: (top * aspectCoefY) - border!.width,
         left: left * aspectCoefX,
-        child: /*Material.GestureDetector(
-          onTap: (){
-            setState((){
-              widgetTaped = !widgetTaped;
-            });
-            showCommentDialog(context,);
-          },
-          child: */Material.Container(
+        child: Material.Container(
             height: subject == 'selectText' ? border!.width * 2 : height * aspectCoefX,
             width: width * aspectCoefX,
             //color: widgetTaped ? Material.Colors.red.withOpacity(0.5) : Material.Colors.green.withOpacity(0.5)
-            alignment: Material.Alignment.topLeft,
-            color: Material.Colors.red.withOpacity(0.3),
-          //     child: points.isNotEmpty && subject == 'selectText' ? Material.GestureDetector(
-          //       onTap: tapFunction(),
-          //       child: tap,
-          // ) : null,
+            alignment: Material.Alignment.topRight,
+            //color: Material.Colors.red.withOpacity(0.3),
+              child: points.isNotEmpty && subject == 'selectText' ? Material.GestureDetector(
+                onTap: (){
+
+                  /// если аннотация была текстом, переходим к редактированию ее контента
+                  final FocusNode myFocusNode1 = FocusNode();
+                  void _requestFocus1(){
+                    setState(() {
+                      //FocusScope.of(context).requestFocus(myFocusNode1);
+                    });
+                  }
+
+                  final TextEditingController controller = TextEditingController(text: content);
+
+                  const Material.OutlineInputBorder border = Material.OutlineInputBorder(
+                      borderRadius: Material.BorderRadius.all(Material.Radius.circular(7.0)),
+                      borderSide: Material.BorderSide(color: Material.Colors.white, width: 2));
+                  const Material.BoxConstraints constraints = Material.BoxConstraints(minWidth: 40.0, minHeight: 40.0, maxWidth: 40.0, maxHeight: 40.0);
+
+
+                  Material.showDialog(
+                    context: context,
+                    barrierDismissible: true,
+                    barrierColor: Material.Colors.transparent,
+                    builder: (context) {
+                      return StatefulBuilder(
+                        builder: (BuildContext context, StateSetter setState) {
+                          return Material.AlertDialog(
+                            scrollable: true,
+                            backgroundColor: Material.Colors.transparent,
+                            contentPadding: const Material.EdgeInsets.fromLTRB(0, 0, 30, 0),
+                            insetPadding: const Material.EdgeInsets.all(10),
+                            elevation: 0.0,
+                            content: Material.Container(
+                              padding: const Material.EdgeInsets.fromLTRB(0,10,0,10),
+                              constraints: const Material.BoxConstraints(
+                                minWidth: 200,
+                                maxWidth: 320,
+                              ),
+                              decoration:  Material.BoxDecoration(
+                                color: Material.Color(0xFF0B1730),
+                                border: Material.Border.all(color: Material.Colors.white),
+                                borderRadius: const Material.BorderRadius.only(
+                                  topRight: Material.Radius.circular(11.0),
+                                  topLeft: Material.Radius.circular(11.0),
+                                  bottomRight: Material.Radius.circular(11.0),
+                                  bottomLeft: Material.Radius.circular(11.0),
+                                ),
+                              ),
+                              child:  Material.Column(
+                                mainAxisSize: Material.MainAxisSize.min,
+                                children: <Material.Widget>[
+                                  Material.Container(
+                                      margin: const Material.EdgeInsets.fromLTRB(10,10,10,0),
+                                      padding: const Material.EdgeInsets.fromLTRB(0,0,0,0),
+                                      alignment: Material.Alignment.topCenter,
+                                      width: MediaQuery.of(context).size.width - 40,
+                                      height: 200,
+                                      child:Material.TextFormField(
+                                        autofocus: true,
+                                        maxLines: 15, minLines: 15, expands: false,
+                                        maxLength: 1000,
+                                        onTap: _requestFocus1,
+                                        focusNode: myFocusNode1,
+                                        textAlign: Material.TextAlign.left,
+                                        enabled: true,
+                                        keyboardType: TextInputType.streetAddress,
+                                        decoration: const Material.InputDecoration(
+                                          contentPadding: Material.EdgeInsets.only(
+                                              left: 15,
+                                              top: 10,
+                                              bottom: 10
+                                          ),
+                                          counter: Material.SizedBox.shrink(),
+                                          hintText: 'Комментарий',
+                                          border: border,
+                                          focusedBorder: border,
+                                          enabledBorder: border,
+                                          errorBorder: border,
+                                          labelText: 'Комментарий',
+                                          labelStyle: Material.TextStyle(fontSize: 15.0, color: Material.Colors.white,fontFamily: 'Inter'),
+                                        ),
+                                        onChanged: (_){setState(() {});},
+                                        autovalidateMode: AutovalidateMode.always,
+                                        controller: controller,
+                                      )),
+                                  Material.Row(
+                                    mainAxisAlignment: Material.MainAxisAlignment.center,
+                                    children: [
+                                      Material.RawMaterialButton(
+                                        constraints: constraints,
+                                        onPressed: (){
+                                          //e.content = '';
+                                          Navigator.of(context).pop();
+                                        },
+                                        elevation: 2.0,
+                                        fillColor: Material.Colors.transparent,
+                                        padding: const Material.EdgeInsets.all(5.0),
+                                        shape: const CircleBorder(),
+                                        child: const Material.Icon(CupertinoIcons.clear, color: Material.Colors.white,),
+                                      ),
+                                      Material.RawMaterialButton(
+                                        constraints: constraints,
+                                        onPressed: (){
+                                          content = controller.text;
+                                          Navigator.of(context).pop();
+                                        },
+                                        elevation: 2.0,
+                                        fillColor: Material.Colors.transparent,
+                                        padding: const Material.EdgeInsets.all(5.0),
+                                        shape: const CircleBorder(),
+                                        child: const Material.Icon(CupertinoIcons.check_mark, color: Material.Colors.white,),
+                                      )
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                          );},
+                      );
+                    },
+                  ).then((value)=>setState((){}));
+                },
+                child: Material.Icon(Material.Icons.announcement_sharp, color: Material.Colors.orange,),
+          ) : null,
           ),
        // ),
       );

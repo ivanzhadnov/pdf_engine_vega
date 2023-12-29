@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:developer';
 import 'dart:io';
-import 'dart:isolate';
+
 
 import 'package:path/path.dart' as path;
 import 'package:pdf_engine_vega/view/widgets/annot_eraser.dart';
@@ -10,9 +10,7 @@ import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:pdfx/pdfx.dart';
-import 'package:pinch_zoom_release_unzoom/pinch_zoom_release_unzoom.dart';
 import 'package:syncfusion_flutter_pdf/pdf.dart' as sf;
-import 'package:system_info2/system_info2.dart';
 import 'package:uuid/uuid.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
@@ -142,7 +140,7 @@ class LoadPdf{
     int pageCount = page != null ? 0 : await getPageCount(pathPdf:  _path);
 
     if(Platform.isIOS || Platform.isAndroid){
-      _path =  await syficionAddAnnotation(pathPdf: pathPdf, annotations: annotations, bookmarks: bookmarks, page: page);
+      _path =  await syficionAddAnnotation(pathPdf: pathPdf, annotations: annotations, bookmarks: bookmarks, page: page, addContent: false);
       loadComplite = true;
       PdfDocument pdfDocument = await PdfDocument.openFile(_path);
       if(page == null){
@@ -181,7 +179,7 @@ class LoadPdf{
     }
     else{
       if(document == null){
-        _path =  await syficionAddAnnotation(pathPdf: pathPdf, annotations: annotations, bookmarks: bookmarks,);
+        _path =  await syficionAddAnnotation(pathPdf: pathPdf, annotations: annotations, bookmarks: bookmarks, addContent: false);
         loadComplite = true;
         late Uint8List bytes;
         ///загрузка из ассета, но нам может понадобиться загрузка из локального хранилища
@@ -637,13 +635,13 @@ for(int i = 0; i < selectedFragments[visiblyPage].length; i++){
                                                 }).toList(),
 
                                                 ///интегрируется виджет области аннотации
-                                                // ...annotations.where((element) =>
-                                                // element.page == index)
-                                                //     .toList().map((e){
-                                                //   e.aspectCoefX = aspectCoefX;
-                                                //   e.aspectCoefY = aspectCoefY;
-                                                //   return e.tapChild;
-                                                // }).toList(),
+                                                ...annotations.where((element) =>
+                                                element.page == index)
+                                                    .toList().map((e){
+                                                  e.aspectCoefX = aspectCoefX;
+                                                  e.aspectCoefY = aspectCoefY;
+                                                  return e.tapChild;
+                                                }).toList(),
                                                 ///указатель ластика
                                                 if(mode == AnnotState.erase && index == visiblyPage) AnnotEraser(eraseRadius: eraseRadius, erasePosition: erasePosition,),
 

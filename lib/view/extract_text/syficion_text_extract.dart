@@ -4,7 +4,7 @@ import 'dart:isolate';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:syncfusion_flutter_pdf/pdf.dart';
-
+import 'package:pdf/src/pdf/color.dart' as Mater;
 import '../../edit/annotation_class.dart';
 import '../../edit/bookmark_class.dart';
 import '../../util/mached_item_class.dart';
@@ -141,8 +141,11 @@ Future<List<int>> getPageRotation({required String pathPdf, int? page})async{
   return angles;
 }
 
+
+
+
 ///добавить аннотацию и закладки
-Future<String> syficionAddAnnotation({required String pathPdf, int? page, List<AnnotationItem>? annotations, List<BookMarkPDF>? bookmarks = const []})async{
+Future<String> syficionAddAnnotation({required String pathPdf, int? page, List<AnnotationItem>? annotations, List<BookMarkPDF>? bookmarks = const [], required bool addContent})async{
   late Uint8List bytes;
   try{
     bytes = (await rootBundle.load(pathPdf)).buffer.asUint8List();
@@ -151,61 +154,57 @@ Future<String> syficionAddAnnotation({required String pathPdf, int? page, List<A
   }
   final PdfDocument document = PdfDocument(inputBytes: bytes);
 
-  if(annotations != null){
-
-    ///страница не задана бежим по всему документу
-    for(int i = 0; i < annotations.length; i++){
-      if(annotations[i].points.isNotEmpty){
-        if(annotations[i].subject == 'selectText'){
-          ///Add select text annotation
-          if(page == null || annotations[i].page == page){
-            document.pages[annotations[i].page].graphics
-              ..setTransparency(0.2, alphaBrush: 0.5, mode: PdfBlendMode.hardLight)
-              ..drawPolygon(
-                annotations[i].points.map((e) => Offset(e.x, e.y)).toList().cast<Offset>(),
-                  //pen: PdfPen.fromBrush(PdfBrushes.blue, width: 10, dashStyle: PdfDashStyle.dashDotDot, lineCap: PdfLineCap.square, lineJoin: PdfLineJoin.round ),
-                brush: PdfBrushes.orange
-              )
+  if(addContent){
+    if(annotations != null){
 
 
-              // ..drawPath(
-              //   PdfPath()
-              //     ..addPath([
-              //       ...annotations[i].points.map((e) => Offset(e.x, e.y)).toList().cast<Offset>()
-              //     ], [0,...annotations[i].points.map((e) => 1).toList().cast<int>()..removeLast()]),
-              //   pen: PdfPen.fromBrush(PdfBrushes.blue, width: 10, dashStyle: PdfDashStyle.dashDotDot, lineCap: PdfLineCap.square, lineJoin: PdfLineJoin.round ),
-              // )
-            ;
-          }
+      ///страница не задана бежим по всему документу
+      for(int i = 0; i < annotations.length; i++){
+        if(annotations[i].points.isNotEmpty){
+          if(annotations[i].subject == 'selectText'){
+            ///Add select text annotation
+            if(page == null || annotations[i].page == page){
+              final _color = annotations[i].color?.toCmyk();
+              document.pages[annotations[i].page].graphics
+                ..setTransparency(0.2, alphaBrush: 0.5, mode: PdfBlendMode.hardLight)
+                ..drawPolygon(
+                    annotations[i].points.map((e) => Offset(e.x, e.y)).toList().cast<Offset>(),
+                    //brush: PdfBrushes.orange
+                   brush: PdfSolidBrush(PdfColor.fromCMYK(_color!.cyan, _color.magenta, _color.yellow, _color.black))
+                );
+            }
 
-        }else{
-          ///Add ink pen annotation
-          if(page == null || annotations[i].page == page){
-            document.pages[annotations[i].page].graphics
-                .drawPath(
-              PdfPath()
-                ..addPath([
-                  ...annotations[i].points.map((e) => Offset(e.x, e.y)).toList().cast<Offset>()
-                ], [0,...annotations[i].points.map((e) => 1).toList().cast<int>()..removeLast()]),
-              pen: PdfPen.fromBrush(PdfBrushes.blue, width: annotations[i].border!.width / 2, dashStyle: PdfDashStyle.dashDotDot, lineCap: PdfLineCap.round, lineJoin: PdfLineJoin.round ),
-            );
+          }else{
+            ///Add ink pen annotation
+            if(page == null || annotations[i].page == page){
+              document.pages[annotations[i].page].graphics
+                  .drawPath(
+                PdfPath()
+                  ..addPath([
+                    ...annotations[i].points.map((e) => Offset(e.x, e.y)).toList().cast<Offset>()
+                  ], [0,...annotations[i].points.map((e) => 1).toList().cast<int>()..removeLast()]),
+                pen: PdfPen.fromBrush(PdfBrushes.blue, width: annotations[i].border!.width / 2, dashStyle: PdfDashStyle.dashDotDot, lineCap: PdfLineCap.round, lineJoin: PdfLineJoin.round ),
+              );
+            }
           }
         }
+      }
+
+
+    }
+
+    ///добавить закладку
+    if(bookmarks!.isNotEmpty){
+      document.bookmarks.add('',destination: PdfDestination(document.pages[0]) );
+    }
+    for(int i = 0; i < bookmarks.length; i++){
+      if(bookmarks.map((e) => e.page == i && (page == null || e.page == page)).toList().isNotEmpty){
+        print('добавлена закладка');
+        document.bookmarks.insert(i, 'Bookmark page #${bookmarks[i].page}').destination = PdfDestination(document.pages[bookmarks[i].page]);
       }
     }
 
 
-  }
-
-  ///добавить закладку
-  if(bookmarks!.isNotEmpty){
-    document.bookmarks.add('',destination: PdfDestination(document.pages[0]) );
-  }
-  for(int i = 0; i < bookmarks.length; i++){
-    if(bookmarks.map((e) => e.page == i && (page == null || e.page == page)).toList().isNotEmpty){
-      print('добавлена закладка');
-      document.bookmarks.insert(i, 'Bookmark page #${bookmarks[i].page}').destination = PdfDestination(document.pages[bookmarks[i].page]);
-    }
   }
 
 
