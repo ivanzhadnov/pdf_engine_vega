@@ -10,6 +10,7 @@ import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:pdfx/pdfx.dart';
+import 'package:pinch_zoom_release_unzoom/pinch_zoom_release_unzoom.dart';
 import 'package:syncfusion_flutter_pdf/pdf.dart' as sf;
 import 'package:uuid/uuid.dart';
 import 'package:visibility_detector/visibility_detector.dart';
@@ -283,8 +284,6 @@ class LoadPdf{
         }catch(e){
           counterHeight += screenHeight;
         }
-
-
       }
       print(counterHeight);
       scrollController.jumpTo(counterHeight - (visiblyPage < page ? 70 : 0));
@@ -296,6 +295,7 @@ class LoadPdf{
 
   int count = 0;
   Future<List<Uint8List>>retutnBytes(int index, zoom)async{
+    print('загрузили сохраненную страницу $index length ${oldListPaths[index].lengthInBytes}');
     return [oldListPaths[index]];
   }
 
@@ -333,6 +333,7 @@ class LoadPdf{
     void onTap(int index)async{
       ///уточняем номер текущей страницы
       visiblyPage = index;
+      selectedUuid = '';
       try{
         func();
       }catch(e){}
@@ -432,23 +433,23 @@ class LoadPdf{
 
               }
               //lines[index].last.text = result;
-for(int i = 0; i < selectedFragments[visiblyPage].length; i++){
-  if(i == 0){
-    lines[index].last.line.add(selectedFragments[visiblyPage][i].bottomLeft);
-    lines[index].last.line.add(selectedFragments[visiblyPage][i].topLeft);
-  }
-  ///находим координаты углов конца строки и координаты углов начала следующей строки
-  else if(selectedFragments[visiblyPage][i].top != selectedFragments[visiblyPage][i - 1].top){
-    lines[index].last.line.add(selectedFragments[visiblyPage][i - 1].topRight);
-    lines[index].last.line.add(selectedFragments[visiblyPage][i - 1].bottomRight);
-    lines[index].last.line.add(Offset(selectedFragments[visiblyPage][i -1].right, selectedFragments[visiblyPage][i].top));
-  }
-  ///печатаем край последней строки
-  else if(i == selectedFragments[visiblyPage].length -1){
-    lines[index].last.line.add(selectedFragments[visiblyPage][i].topRight);
-    lines[index].last.line.add(selectedFragments[visiblyPage][i].bottomRight);
-  }
-}
+              for(int i = 0; i < selectedFragments[visiblyPage].length; i++){
+                if(i == 0){
+                  lines[index].last.line.add(selectedFragments[visiblyPage][i].bottomLeft);
+                  lines[index].last.line.add(selectedFragments[visiblyPage][i].topLeft);
+                }
+                ///находим координаты углов конца строки и координаты углов начала следующей строки
+                else if(selectedFragments[visiblyPage][i].top != selectedFragments[visiblyPage][i - 1].top){
+                  lines[index].last.line.add(selectedFragments[visiblyPage][i - 1].topRight);
+                  lines[index].last.line.add(selectedFragments[visiblyPage][i - 1].bottomRight);
+                  lines[index].last.line.add(Offset(selectedFragments[visiblyPage][i -1].right, selectedFragments[visiblyPage][i].top));
+                }
+                ///печатаем край последней строки
+                else if(i == selectedFragments[visiblyPage].length -1){
+                  lines[index].last.line.add(selectedFragments[visiblyPage][i].topRight);
+                  lines[index].last.line.add(selectedFragments[visiblyPage][i].bottomRight);
+                }
+              }
 
               for(int i = selectedFragments[visiblyPage].length -1; i > 0; i--){
                 if(i == selectedFragments[visiblyPage].length -1){}
@@ -525,8 +526,8 @@ for(int i = 0; i < selectedFragments[visiblyPage].length; i++){
         builder: (context, snapshot) {
           if(snapshot.hasData && count == 0){
             reload = true;
-            document = null;
-            oldPath = pathPdf;
+            //document = null;
+            //oldPath = pathPdf;
             count = snapshot.data ?? 0;
             if(count > 0){
               lines = List.generate(count, (_) => []);
@@ -538,12 +539,11 @@ for(int i = 0; i < selectedFragments[visiblyPage].length; i++){
           }
 
 
-          List<Widget> _children = List.generate(count, (index) => index == 0 || /*(index > 0 && oldListPaths[index-1].isNotEmpty) ||*/ visiblyPage == index ? FutureBuilder<List<Uint8List>>(
+          List<Widget> _children = List.generate(count, (index) => index == 0 || visiblyPage == index || (index > 0 && (visiblyPage == index - 1 || visiblyPage == index + 1))? FutureBuilder<List<Uint8List>>(
               future:
               reload || oldListPaths[index].isEmpty ?
               loadAssetAll(pathPdf: pathPdf, annotations: annotations, bookmarks: bookmarks, width: width, height: height, zoom: zoom, page: index)
-                  : retutnBytes(index, zoom)
-              ,
+                 : retutnBytes(index, zoom),
               builder: (context, _snapshot) {
                 //print(oldListPaths[index].lengthInBytes);
                 if(_snapshot.hasData && _snapshot.data != null){
@@ -557,7 +557,6 @@ for(int i = 0; i < selectedFragments[visiblyPage].length; i++){
                   return  StatefulBuilder(
                       builder: (BuildContext context, StateSetter setState)=> Center(
                           child: GestureDetector(
-
                               onTap: () => onTap(index),
                               onPanStart: (v) => onPanStart(v, index, setState),
                               onPanEnd: (v) => onPanEnd(v, index, setState),
@@ -574,19 +573,23 @@ for(int i = 0; i < selectedFragments[visiblyPage].length; i++){
                                               5, 5, 5, 5),
                                           child: Stack(
                                               children: [
-                                          // PinchZoomReleaseUnzoomWidget(
-                                          //   twoFingersOn: () => setState(() => blockScroll = true),
-                                          //   twoFingersOff: () => Future.delayed(
-                                          //     PinchZoomReleaseUnzoomWidget.defaultResetDuration,
-                                          //         () => setState(() => blockScroll = false),
-                                          //   ),
-                                          // fingersRequiredToPinch: 2,
-                                          // child:
-                                          Image.memory(
+
+                                          Platform.isIOS || Platform.isAndroid ? PinchZoomReleaseUnzoomWidget(
+                                              twoFingersOn: () =>  blockScroll = true,
+                                          twoFingersOff: () => Future.delayed(
+                                            PinchZoomReleaseUnzoomWidget.defaultResetDuration,
+                                                () =>  blockScroll = false,
+                                          ),
+                                          fingersRequiredToPinch: 2,
+                                          child:Image.memory(
                                                   _snapshot.data!.first,
                                                   //scale: 1,
                                                 ),
-                                         // ),
+                                          )
+                                                : Image.memory(
+                                  _snapshot.data!.first,
+                                    //scale: 1,
+                                  ),
                                                 ///рисуем выделения найденого текста
                                                 ...findedFragments.where((el) => el.pageIndex == index).toList().map((e) => Positioned(
                                                     top:e.bounds!.top * aspectCoefY,
@@ -627,7 +630,7 @@ for(int i = 0; i < selectedFragments[visiblyPage].length; i++){
                                                 }).toList(),
                                                 ///рисуем обводку у выделлной аннотации
                                                 ...annotations.where((element) =>
-                                                element.uuid == selectedUuid)
+                                                element.uuid == selectedUuid && element.page == index)
                                                     .toList().map((e){
                                                   e.aspectCoefX = aspectCoefX;
                                                   e.aspectCoefY = aspectCoefY;
@@ -678,7 +681,7 @@ for(int i = 0; i < selectedFragments[visiblyPage].length; i++){
           );
 
           return SingleChildScrollView(
-              physics: blockScroll == false ? const AlwaysScrollableScrollPhysics() : NeverScrollableScrollPhysics(),
+              physics: AlwaysScrollableScrollPhysics(),
               scrollDirection: scrollDirection!,
               controller: scrollController,
               child: Column(
