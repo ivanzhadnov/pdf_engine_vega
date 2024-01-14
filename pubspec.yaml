@@ -16,7 +16,7 @@ dependencies:
   path_provider: ^2.1.1
   system_info2: ^4.0.0
   visibility_detector: ^0.4.0+2
-  syncfusion_flutter_pdf: ^23.2.6
+  syncfusion_flutter_pdf: ^24.1.44
   #https://pub.dev/packages/pdf_text_extraction нужны библиотеки под макось андроид и иос
   pdf: ^3.10.4
   #pdfx: ^2.4.0
