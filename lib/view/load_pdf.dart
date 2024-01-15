@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:developer';
 import 'dart:io';
-
+import 'package:async/async.dart';
 
 import 'package:path/path.dart' as path;
 import 'package:pdf_engine_vega/view/widgets/annot_eraser.dart';
@@ -73,7 +73,6 @@ class LoadPdf{
     else if(Platform.isMacOS){
       libraryPath = 'libpdfium.dylib';
     }
-    ///TODO привязать библиотеку к иос
     else if(Platform.isIOS){
       final String localPath = directory.path;
       File file = File(path.join(localPath, 'libpdfium_ios.dylib'));
@@ -122,31 +121,47 @@ class LoadPdf{
     int? zoom,
     String? color,
   }) async {
-    print('загрузили по новой $page zoom $zoom');
+    //print('загрузили по новой $page zoom $zoom');
     List<Uint8List> filesPaths = [];
     String _path = pathPdf;
-    ///получаем исходные размеры документа, чтоб потом подстраивать рисование
-    bornDocSize = await getPageSize(pathPdf: pathPdf);
-    aspectRatioDoc = bornDocSize.aspectRatio;
-    width = bornDocSize.width * (zoom ?? 1);
-    height = bornDocSize.height * (zoom ?? 1);
 
-    screenWidth = width;
-    screenHeight = height;
-    aspectCoefX = width / bornDocSize.width;
-    aspectCoefY = height / bornDocSize.height;
-    ///добавляем аннотации если они есть или были нарисованы
-    final directory = await getApplicationDocumentsDirectory();
-    String fileName = 'render${zoom != null && zoom != 1 ? 'zoom' : ''}';
-    int pageCount = page != null ? 0 : await getPageCount(pathPdf:  _path);
+      ///получаем исходные размеры документа, чтоб потом подстраивать рисование
+      bornDocSize = await getPageSize(pathPdf: pathPdf);
+      aspectRatioDoc = bornDocSize.aspectRatio;
+      width = bornDocSize.width * (zoom ?? 1);
+      height = bornDocSize.height * (zoom ?? 1);
 
-    if(Platform.isIOS || Platform.isAndroid){
-      _path =  await syficionAddAnnotation(pathPdf: pathPdf, annotations: annotations, bookmarks: bookmarks, page: page, addContent: false);
-      loadComplite = true;
-      PdfDocument pdfDocument = await PdfDocument.openFile(_path);
-      if(page == null){
-        for (int i = 1; i <= pageCount; i++) {
-          final pdfPage = await pdfDocument.getPage(i);
+      screenWidth = width;
+      screenHeight = height;
+      aspectCoefX = width / bornDocSize.width;
+      aspectCoefY = height / bornDocSize.height;
+      ///добавляем аннотации если они есть или были нарисованы
+      final directory = await getApplicationDocumentsDirectory();
+      String fileName = 'render${zoom != null && zoom != 1 ? 'zoom' : ''}';
+      int pageCount = page != null ? 0 : await getPageCount(pathPdf:  _path);
+
+      if(Platform.isIOS || Platform.isAndroid){
+        _path =  await syficionAddAnnotation(pathPdf: pathPdf, annotations: annotations, bookmarks: bookmarks, page: page, addContent: false);
+        loadComplite = true;
+        PdfDocument pdfDocument = await PdfDocument.openFile(_path);
+        if(page == null){
+          for (int i = 1; i <= pageCount; i++) {
+            final pdfPage = await pdfDocument.getPage(i);
+            final pdfWidth = screenWidth;
+            final pdfHeight = screenHeight;
+            final image = await pdfPage.render(
+              width: pdfWidth,
+              height: pdfHeight,
+              format: PdfPageImageFormat.jpeg,
+              backgroundColor: color ?? '#FFFFFFFF',
+              quality: 100,
+            );
+            if(Platform.isAndroid) pdfPage.close();
+            final _bytes = image!.bytes;
+            filesPaths.add(_bytes);
+          }
+        }else{
+          final pdfPage = await pdfDocument.getPage(page + 1);
           final pdfWidth = screenWidth;
           final pdfHeight = screenHeight;
           final image = await pdfPage.render(
@@ -156,90 +171,76 @@ class LoadPdf{
             backgroundColor: color ?? '#FFFFFFFF',
             quality: 100,
           );
-         if(Platform.isAndroid) pdfPage.close();
-          final _bytes = image!.bytes;
-          filesPaths.add(_bytes);
+          if(Platform.isAndroid) pdfPage.close();
+          final bytes = image!.bytes;
+          filesPaths.add(bytes);
         }
-      }else{
-        final pdfPage = await pdfDocument.getPage(page + 1);
-        final pdfWidth = screenWidth;
-        final pdfHeight = screenHeight;
-        final image = await pdfPage.render(
-          width: pdfWidth,
-          height: pdfHeight,
-          format: PdfPageImageFormat.jpeg,
-          backgroundColor: color ?? '#FFFFFFFF',
-          quality: 100,
-        );
-        if(Platform.isAndroid) pdfPage.close();
-        final bytes = image!.bytes;
-        filesPaths.add(bytes);
-      }
 
-      await pdfDocument.close();
-    }
-    else{
-      if(document == null){
-        _path =  await syficionAddAnnotation(pathPdf: pathPdf, annotations: annotations, bookmarks: bookmarks, addContent: false);
-        loadComplite = true;
-        late Uint8List bytes;
-        ///загрузка из ассета, но нам может понадобиться загрузка из локального хранилища
-        try{
-          bytes = (await rootBundle.load(_path)).buffer.asUint8List();
-        }catch(e){
-          bytes = (File(_path).readAsBytesSync());
+        await pdfDocument.close();
+      }
+      else{
+        if(document == null){
+          _path =  await syficionAddAnnotation(pathPdf: pathPdf, annotations: annotations, bookmarks: bookmarks, addContent: false);
+          loadComplite = true;
+          late Uint8List bytes;
+          ///загрузка из ассета, но нам может понадобиться загрузка из локального хранилища
+          try{
+            bytes = (await rootBundle.load(_path)).buffer.asUint8List();
+          }catch(e){
+            bytes = (File(_path).readAsBytesSync());
+          }
+          ///получить количество страниц
+          document = pdfium!.loadDocumentFromBytes(bytes);
         }
-        ///получить количество страниц
-        document = pdfium!.loadDocumentFromBytes(bytes);
-      }
 
 
-      ///циклом собрать массив отрендеренных страниц для отображения
-      if(page == null){
-        print('$pageCount');
-        List<int> rotation = await getPageRotation(pathPdf: pathPdf,);
+        ///циклом собрать массив отрендеренных страниц для отображения
+        if(page == null){
+          //print('$pageCount');
+          List<int> rotation = await getPageRotation(pathPdf: pathPdf,);
 
-        for(int i = 0; i < pageCount; i++){
+          for(int i = 0; i < pageCount; i++){
+            int realWidth = 0;
+            int realHeight = 0;
+
+            Size size = await getPageSize(pathPdf: pathPdf, page: i);
+
+
+            if(rotation[i] == 0 || rotation[i] == 2){
+              realWidth = (size.width * (zoom ?? 1)).toInt();
+              realHeight = (size.height * (zoom ?? 1)).toInt();
+            }else{
+              realWidth = rotation[i] == 0 || rotation[i] == 2 ? screenWidth.toInt() : screenHeight.toInt();
+              realHeight = rotation[i] != 0 && rotation[i] != 2 ? screenWidth.toInt() : screenHeight.toInt();
+            }
+            document!.loadPage(i).
+            savePageAsJpg('${directory.path}${Platform.pathSeparator}$fileName$i.jpg', qualityJpg: 100, flags: 0, width: realWidth, height: realHeight, backgroundColor: int.parse((color ?? '#FFFFFFFF').replaceAll('#', '0x')))
+                .closePage();
+            final _bytes = await File('${directory.path}${Platform.pathSeparator}$fileName$i.jpg').readAsBytes();
+            filesPaths.add(_bytes);
+          }
+        }
+        else{
+          List<int> rotation = await getPageRotation(pathPdf: pathPdf, page: page);
+          Size size = await getPageSize(pathPdf: pathPdf, page: page);
           int realWidth = 0;
           int realHeight = 0;
-
-          Size size = await getPageSize(pathPdf: pathPdf, page: i);
-
-
-          if(rotation[i] == 0 || rotation[i] == 2){
+          if(rotation.first == 0 || rotation.first == 2){
             realWidth = (size.width * (zoom ?? 1)).toInt();
             realHeight = (size.height * (zoom ?? 1)).toInt();
           }else{
-            realWidth = rotation[i] == 0 || rotation[i] == 2 ? screenWidth.toInt() : screenHeight.toInt();
-            realHeight = rotation[i] != 0 && rotation[i] != 2 ? screenWidth.toInt() : screenHeight.toInt();
+            realWidth = rotation.first == 0 || rotation.first == 2 ? screenWidth.toInt() : screenHeight.toInt();
+            realHeight = rotation.first != 0 && rotation.first != 2 ? screenWidth.toInt() : screenHeight.toInt();
           }
-          document!.loadPage(i).
-          savePageAsJpg('${directory.path}${Platform.pathSeparator}$fileName$i.jpg', qualityJpg: 100, flags: 0, width: realWidth, height: realHeight, backgroundColor: int.parse((color ?? '#FFFFFFFF').replaceAll('#', '0x')))
-              .closePage();
-          final _bytes = await File('${directory.path}${Platform.pathSeparator}$fileName$i.jpg').readAsBytes();
-          filesPaths.add(_bytes);
-        }
-      }
-      else{
-        List<int> rotation = await getPageRotation(pathPdf: pathPdf, page: page);
-        Size size = await getPageSize(pathPdf: pathPdf, page: page);
-        int realWidth = 0;
-        int realHeight = 0;
-        if(rotation.first == 0 || rotation.first == 2){
-          realWidth = (size.width * (zoom ?? 1)).toInt();
-          realHeight = (size.height * (zoom ?? 1)).toInt();
-        }else{
-          realWidth = rotation.first == 0 || rotation.first == 2 ? screenWidth.toInt() : screenHeight.toInt();
-          realHeight = rotation.first != 0 && rotation.first != 2 ? screenWidth.toInt() : screenHeight.toInt();
-        }
 
-        document!.loadPage(page).
-        savePageAsJpg('${directory.path}${Platform.pathSeparator}$fileName$page.jpg', qualityJpg: 100, flags: 0, width: realWidth, height: realHeight,)
-            .closePage();
-        final _bytes = File('${directory.path}${Platform.pathSeparator}$fileName$page.jpg').readAsBytesSync();
-        filesPaths.add(_bytes);
+          document!.loadPage(page).
+          savePageAsJpg('${directory.path}${Platform.pathSeparator}$fileName$page.jpg', qualityJpg: 100, flags: 0, width: realWidth, height: realHeight,).closePage();
+          final _bytes = File('${directory.path}${Platform.pathSeparator}$fileName$page.jpg').readAsBytesSync();
+          filesPaths[page]=_bytes;
+        }
       }
-    }
+
+
     return filesPaths;
   }
 
@@ -271,13 +272,29 @@ class LoadPdf{
   List<DrawLineItem> brokenLists = [];
   String searchTextString = '';
 
+RestartableTimer _tapTimer = RestartableTimer(const Duration(seconds: 1), () {});
+bool _brakeChangePage = false;
+int? _page;
 
   ///обрабатываем нажатие по скролл контроллеру
+  ///нужно дождаться пока перестанут тыкать и перейти на нужную страницу
   changePage(int page, setState){
+if(_brakeChangePage == true){
+  print('пропустили нажатие');
+  _tapTimer.reset();
+  visiblyPage = page.abs();
+  _page =  page.abs();
+  setState();
+}else{
+  print('отработали нажатие');
+  _brakeChangePage = true;
+  _tapTimer = RestartableTimer(const Duration(milliseconds: 300), () {
+    _brakeChangePage = false;
     if(oldListPaths.length > 1){
       scrollController.jumpTo(0);
       double counterHeight = 0;
-      for(int i = 0; i < page; i++){
+      int _counter = _page ?? page.abs();
+      for(int i = 0; i < _counter; i++){
         try{
           final RenderObject? renderBoxRed = globalKeys[i].currentContext!.findRenderObject();
           counterHeight += renderBoxRed!.paintBounds.height;
@@ -285,17 +302,21 @@ class LoadPdf{
           counterHeight += screenHeight;
         }
       }
-      print(counterHeight);
-      scrollController.jumpTo(counterHeight - (visiblyPage < page ? 70 : 0));
-      visiblyPage = page.abs();
+      //scrollController.jumpTo(counterHeight - (visiblyPage < page ? 70 : 0));
+      scrollController.jumpTo(counterHeight);
+      visiblyPage =  _counter;
+      _page = null;
       setState();
     }
+
+  });
+}
 
   }
 
   int count = 0;
   Future<List<Uint8List>>retutnBytes(int index, zoom)async{
-    print('загрузили сохраненную страницу $index length ${oldListPaths[index].lengthInBytes}');
+   // print('загрузили сохраненную страницу $index length ${oldListPaths[index].lengthInBytes}');
     return [oldListPaths[index]];
   }
 
@@ -509,11 +530,14 @@ class LoadPdf{
     }
     ///обработка прокрутки страниц и установка номера активной страницы
     void onVisibilityChanged(VisibilityInfo info) {
-        if(info.visibleFraction > 0.45 || (zoom ?? 1) > 1){
+        if((info.visibleFraction > 0.51 || (zoom ?? 1) > 1) && _brakeChangePage == false){
           visiblyPage = int.parse(info.key.toString().replaceAll('[<\'', '').replaceAll('\'>]', ''));
-          try{
+          if(visiblyPage == 0){
+            try{
             func();
-          }catch(e){}
+            }catch(e){}
+          }
+
         }
     }
 
@@ -526,8 +550,6 @@ class LoadPdf{
         builder: (context, snapshot) {
           if(snapshot.hasData && count == 0){
             reload = true;
-            //document = null;
-            //oldPath = pathPdf;
             count = snapshot.data ?? 0;
             if(count > 0){
               lines = List.generate(count, (_) => []);
