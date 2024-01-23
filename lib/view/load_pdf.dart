@@ -126,7 +126,6 @@ class LoadPdf{
     ///получаем исходные размеры документа, чтоб потом подстраивать рисование
     bornDocSize = await getPageSize(pathPdf: pathPdf);
     aspectRatioDoc = bornDocSize.aspectRatio;
-    //print('соотношение сторон документа $aspectRatioDoc');
     width = bornDocSize.width;
     height = bornDocSize.height;
 
@@ -142,7 +141,6 @@ class LoadPdf{
     if(Platform.isIOS || Platform.isAndroid){
       _path =  await syficionAddAnnotation(pathPdf: pathPdf, annotations: annotations, bookmarks: bookmarks, page: page, addContent: false);
       loadComplite = true;
-      //print(_path);
       PdfDocument pdfDocument = await PdfDocument.openFile(_path);
 
       if(page == null){
@@ -197,7 +195,6 @@ class LoadPdf{
 
       ///циклом собрать массив отрендеренных страниц для отображения
       if(page == null){
-        //print('$pageCount');
         List<int> rotation = await getPageRotation(pathPdf: pathPdf,);
 
         for(int i = 0; i < pageCount; i++){
@@ -263,7 +260,9 @@ class LoadPdf{
   int visiblyPage = 0;
   //ScrollController scrollController = ScrollController();
   //CarouselController scrollController = CarouselController();
-  PageController scrollController = PageController();
+  PageController scrollController = PageController(
+      keepPage: false, viewportFraction: 0.73,
+  );
 
   ///переменные для работы с ластиком
   double eraseRadius = 10.0;
@@ -330,7 +329,8 @@ class LoadPdf{
       startSelectTextPoint = v.localPosition;
       if(mode == AnnotState.erase){
         erasePositions[index].add([]);
-        setState((){});
+        //setState((){});
+        func();
       }
     }
     ///обработка завершения рисования линии и подготовка новой линии
@@ -406,7 +406,8 @@ class LoadPdf{
                 ///выделяем с лева на право
                 for(int ii =0; ii < filterdLines[i].wordCollection.length; ii++){
                   if(i == 0 && filterdLines[i].wordCollection[ii].bounds.left >= newstartSelectTextPoint.dx){
-                    if( !selectedFragments[visiblyPage].contains(filterdLines[i].wordCollection[ii - 1].bounds)) selectedFragments[visiblyPage].add(filterdLines[i].wordCollection[ii-1].bounds);
+                    ///TODO ????
+                    //if( !selectedFragments[visiblyPage].contains(filterdLines[i].wordCollection[ii - 1].bounds)) selectedFragments[visiblyPage].add(filterdLines[i].wordCollection[ii-1].bounds);
                     if( !selectedFragments[visiblyPage].contains(filterdLines[i].wordCollection[ii].bounds)) selectedFragments[visiblyPage].add(filterdLines[i].wordCollection[ii].bounds);
                     //result += filterdLines[i].wordCollection[ii].text;
                   }else if( i == filterdLines.length - 1 && filterdLines[i].wordCollection[ii].bounds.right <= newendtSelectTextPoint.dx){
@@ -525,7 +526,7 @@ class LoadPdf{
           }
 
 
-          List<Widget> _children = List.generate(count, (index) => index == 0 || visiblyPage == index || (index > 0 && (visiblyPage == index - 1 || visiblyPage == index + 1))? FutureBuilder<List<Uint8List>>(
+          List<Widget> _children = List.generate(count, (index) => index == 0 || visiblyPage == index || (index > 0 && (visiblyPage == index - 1 || visiblyPage == index + 1 || visiblyPage == index + 2))? FutureBuilder<List<Uint8List>>(
               future: reload || oldListPaths[index].isEmpty ? loadAssetAll(pathPdf: pathPdf, annotations: annotations, bookmarks: bookmarks, page: index) : retutnBytes(index,),
               builder: (context, _snapshot) {
                 if(_snapshot.hasData && _snapshot.data != null){
@@ -536,30 +537,25 @@ class LoadPdf{
                 }
                 if(_snapshot.hasData){
                   final _child = Container(
-                    //height: screenHeight,
-                    //width: screenWidth,
                     margin: const EdgeInsets.fromLTRB(0, 0, 5, 5),
                     child: RotatedBox(
                       quarterTurns: rotation,
                       child: Stack(
-                          alignment: fullScreenMode! && (rotation != 0 && rotation != 2) ? AlignmentDirectional.center : AlignmentDirectional.topStart,
+                          alignment: AlignmentDirectional.topStart,
                           children: [
                             Image.memory(
                               _snapshot.data!.first,
                               key: globalKeys[index],
                               filterQuality: FilterQuality.high,
-                              //fit: BoxFit.fitWidth,
-                              //height: screenHeight,
-                              //width: screenWidth,
                             ),
                             ///рисуем выделения найденого текста
                             ...findedFragments.where((el) => el.pageIndex == index).toList().map((e) => Positioned(
-                                top:e.bounds!.top * aspectCoefY,
-                                left: e.bounds!.left * aspectCoefX,
+                                top:e.bounds!.top - 2,
+                                left: e.bounds!.left - 2,
                                 child: Container(
                                   color: Colors.yellow.withOpacity(0.7),
-                                  width: (e.bounds!.width > 0 ? e.bounds!.width : 30) * aspectCoefX,
-                                  height: e.bounds!.height * aspectCoefY,
+                                  width: (e.bounds!.width > 0 ? e.bounds!.width : 30),
+                                  height: e.bounds!.height,
                                 ))).toList(),
                             ///показываем, что есть закладка
                             if(bookmarks != null)
@@ -627,46 +623,68 @@ class LoadPdf{
               ),
           );
 
+          returnWidth(){
+            if(screenWidth < height!){
+              return rotation == 0 || rotation == 2 ? screenWidth : screenHeight;
+            }else{
+              //return rotation == 0 || rotation == 2 ? width : height;
+              return rotation == 0 || rotation == 2 ? screenWidth : screenHeight;
+            }
+          }
+
+          returnHeight(){
+            if(screenWidth < height!){
+              scrollController = PageController(
+                keepPage: false, viewportFraction: 1,
+              );
+              return rotation == 0 || rotation == 2 ? screenHeight : screenWidth;
+            }else{
+              scrollController = PageController(
+                keepPage: false, viewportFraction: 0.73,
+              );
+              //return rotation == 0 || rotation == 2 ? height : width! * 0.77;
+              return rotation == 0 || rotation == 2 ? screenHeight : screenWidth;
+            }
+          }
+
+
           return Container(
-            color: Colors.green,
-            height: fullScreenMode! ? rotation == 0 || rotation == 2 ? width : height :  rotation == 0 || rotation == 2 ? screenHeight : screenWidth,
-            width: fullScreenMode! ? rotation == 0 || rotation == 2 ? height: width : rotation == 0 || rotation == 2 ? screenWidth : screenHeight,
+            color: Colors.transparent,
+            height: returnHeight(),
+            width: returnWidth(),
             alignment: Alignment.center,
             child: InteractiveViewer(
-              trackpadScrollCausesScale: false,
-              boundaryMargin: const EdgeInsets.all(0.0),
-              minScale: 1,
-              maxScale: 5,
-              onInteractionStart: (v){},
-              onInteractionEnd: (v){},
-              child: PageView(
-                padEnds: false,
-                scrollBehavior: ScrollConfiguration.of(context).copyWith(
-                  scrollbars: false,
-                  overscroll: true,
-                  dragDevices: {
-                    PointerDeviceKind.touch,
-                    PointerDeviceKind.mouse,
-                  },
+                  trackpadScrollCausesScale: false,
+                  boundaryMargin: const EdgeInsets.all(0.0),
+                  minScale: 1,
+                  maxScale: 5,
+                  onInteractionStart: (v){},
+                  onInteractionEnd: (v){},
+                  child: PageView(
+                    padEnds: false,
+                    scrollBehavior: ScrollConfiguration.of(context).copyWith(
+                      scrollbars: false,
+                      overscroll: true,
+                      dragDevices: {
+                        PointerDeviceKind.touch,
+                        PointerDeviceKind.mouse,
+                      },
+                    ),
+                    physics: mode == AnnotState.inactive ? AlwaysScrollableScrollPhysics() : NeverScrollableScrollPhysics(),
+                    scrollDirection: scrollDirection!,
+                    pageSnapping: false,
+                    controller: scrollController,
+                    reverse: false,
+                    onPageChanged: (int index) {
+                      visiblyPage = index;
+                      func();
+                    },
+                    children: _children,
+                  ),
                 ),
-                physics: mode == AnnotState.inactive ? AlwaysScrollableScrollPhysics() : NeverScrollableScrollPhysics(),
-                scrollDirection: scrollDirection!,
-                pageSnapping: false,
-                controller: scrollController,
-                reverse: false,
-                onPageChanged: (int index) {
-                  visiblyPage = index;
-                  func();
-                },
-                children: _children,
-              ),
-            ),
+
           );
         });
-  }
-
-  getBlocks(int page, annotations){
-
   }
 
 }
