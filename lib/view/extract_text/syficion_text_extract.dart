@@ -210,16 +210,31 @@ Future<String> syficionAddAnnotation({required String pathPdf, int? page, List<A
 
 
   ///сохраняем в темп
-  final directory = await getApplicationDocumentsDirectory();
   String tempName = 'output.pdf';
-  final file = File('${directory.path}${Platform.pathSeparator}$tempName');
-  if(await file.exists()){
-    ///file.delete();
+  if (Platform.isWindows) {
+    final directory = (await getApplicationSupportDirectory());
+    final file = File('${directory.path}${Platform.pathSeparator}$tempName');
+    if(await file.exists()){
+      ///file.delete();
+    }
+    await file.writeAsBytes(await document.save());
+    ///показываем пользователю
+    //print(file.path);
+    return file.path;
+  }else{
+    final directory = await getApplicationDocumentsDirectory();
+    final file = File('${directory.path}${Platform.pathSeparator}$tempName');
+    if(await file.exists()){
+      ///file.delete();
+    }
+    await file.writeAsBytes(await document.save());
+    ///показываем пользователю
+    //print(file.path);
+    return file.path;
   }
-  await file.writeAsBytes(await document.save());
-  ///показываем пользователю
-  //print(file.path);
-  return file.path;
+
+
+
 }
 
 
