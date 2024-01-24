@@ -12,6 +12,7 @@ import 'package:flutter/material.dart';
 import 'package:pdfx/pdfx.dart';
 import 'package:syncfusion_flutter_pdf/pdf.dart' as sf;
 import 'package:uuid/uuid.dart';
+import 'package:image/image.dart' as img;
 
 import '../edit/annot_buttons.dart';
 import '../edit/annot_painter.dart';
@@ -108,6 +109,8 @@ class LoadPdf{
   bool loadComplite = false;
 
   PdfiumWrap? document;
+  PdfDocument? pdfDocument;
+
   ///загрузка файла PDF целиком
   Future<List<Uint8List>> loadAssetAll({
     required String pathPdf,
@@ -121,122 +124,158 @@ class LoadPdf{
   }) async {
     //print('загрузили по новой $page zoom $zoom');
     List<Uint8List> filesPaths = [];
-    String _path = pathPdf;
 
-    ///получаем исходные размеры документа, чтоб потом подстраивать рисование
-    bornDocSize = await getPageSize(pathPdf: pathPdf);
-    aspectRatioDoc = bornDocSize.aspectRatio;
-    width = bornDocSize.width;
-    height = bornDocSize.height;
+      String _path = pathPdf;
 
-    screenWidth = width;
-    screenHeight = height;
-    aspectCoefX = width / bornDocSize.width;
-    aspectCoefY = height / bornDocSize.height;
-    ///добавляем аннотации если они есть или были нарисованы
-    final directory = await getApplicationDocumentsDirectory();
-    String fileName = 'render';
-    int pageCount = page != null ? 0 : await getPageCount(pathPdf:  _path);
+      ///получаем исходные размеры документа, чтоб потом подстраивать рисование
+      bornDocSize = await getPageSize(pathPdf: pathPdf);
+      aspectRatioDoc = bornDocSize.aspectRatio;
+      width = bornDocSize.width;
+      height = bornDocSize.height;
 
-    if(Platform.isIOS || Platform.isAndroid){
-      _path =  await syficionAddAnnotation(pathPdf: pathPdf, annotations: annotations, bookmarks: bookmarks, page: page, addContent: false);
-      loadComplite = true;
-      PdfDocument pdfDocument = await PdfDocument.openFile(_path);
+      screenWidth = width;
+      screenHeight = height;
+      aspectCoefX = width / bornDocSize.width;
+      aspectCoefY = height / bornDocSize.height;
 
-      if(page == null){
-        for (int i = 1; i <= pageCount; i++) {
-          final pdfPage = await pdfDocument.getPage(i);
-          final pdfWidth = screenWidth;
-          final pdfHeight = screenHeight;
-          final image = await pdfPage.render(
-            width: pdfWidth,
-            height: pdfHeight,
-            format: PdfPageImageFormat.jpeg,
-            backgroundColor: color ?? '#FFFFFFFF',
-            quality: 100,
-          );
-          if(Platform.isAndroid) pdfPage.close();
-          final _bytes = image!.bytes;
-          filesPaths.add(_bytes);
-        }
-      }else{
-        final pdfPage = await pdfDocument.getPage(page + 1);
-        final pdfWidth = screenWidth;
-        final pdfHeight = screenHeight;
-        final image = await pdfPage.render(
-          width: pdfWidth,
-          height: pdfHeight,
-          format: PdfPageImageFormat.jpeg,
-          backgroundColor: color ?? '#FFFFFFFF',
-          quality: 100,
-        );
-        if(Platform.isAndroid) pdfPage.close();
-        final bytes = image!.bytes;
-        filesPaths.add(bytes);
-      }
+      //final directory = await getApplicationDocumentsDirectory();
+      //String fileName = 'render';
+      int pageCount = page != null ? 0 : await getPageCount(pathPdf:  _path);
 
-      await pdfDocument.close();
-    }
-    else{
-      if(document == null){
-        _path =  await syficionAddAnnotation(pathPdf: pathPdf, annotations: annotations, bookmarks: bookmarks, addContent: false);
+      if(Platform.isIOS || Platform.isAndroid){
+
+        ///добавляем аннотации если они есть или были нарисованы
+        _path =  await syficionAddAnnotation(pathPdf: pathPdf, annotations: annotations, bookmarks: bookmarks, page: page, addContent: false);
         loadComplite = true;
-        late Uint8List bytes;
-        ///загрузка из ассета, но нам может понадобиться загрузка из локального хранилища
-        try{
-          bytes = (await rootBundle.load(_path)).buffer.asUint8List();
-        }catch(e){
-          bytes = (File(_path).readAsBytesSync());
+        pdfDocument ??= await PdfDocument.openFile(_path);
+
+        if(page == null){
+          for (int i = 1; i <= pageCount; i++) {
+            final pdfPage = await pdfDocument!.getPage(i);
+            final pdfWidth = screenWidth * 2;
+            final pdfHeight = screenHeight * 2;
+            final image = await pdfPage.render(
+              width: pdfWidth,
+              height: pdfHeight,
+              format: PdfPageImageFormat.jpeg,
+              backgroundColor: color ?? '#FFFFFFFF',
+              quality: 100,
+            );
+            if(Platform.isAndroid) pdfPage.close();
+            final _bytes = image!.bytes;
+            filesPaths.add(_bytes);
+          }
+        }else{
+          if(visiblyPage == page){
+            final pdfPage = await pdfDocument!.getPage(page + 1);
+            final pdfWidth = screenWidth * 2;
+            final pdfHeight = screenHeight * 2;
+            final image = await pdfPage.render(
+              width: pdfWidth,
+              height: pdfHeight,
+              format: PdfPageImageFormat.jpeg,
+              backgroundColor: color ?? '#FFFFFFFF',
+              quality: 100,
+            );
+            if(Platform.isAndroid) pdfPage.close();
+            final bytes = image!.bytes;
+            filesPaths.add(bytes);
+          }else{
+            print('пропустили загрузку');
+            filesPaths.add(Uint8List(0));
+          }
         }
-        ///получить количество страниц
-        document = pdfium!.loadDocumentFromBytes(bytes);
+
+        //await pdfDocument!.close();
       }
+      else{
+        if(document == null){
+          ///добавляем аннотации если они есть или были нарисованы
+          _path =  await syficionAddAnnotation(pathPdf: pathPdf, annotations: annotations, bookmarks: bookmarks, addContent: false);
+          loadComplite = true;
+          late Uint8List bytes;
+          ///загрузка из ассета, но нам может понадобиться загрузка из локального хранилища
+          try{
+            bytes = (await rootBundle.load(_path)).buffer.asUint8List();
+          }catch(e){
+            bytes = (File(_path).readAsBytesSync());
+          }
+          ///получить количество страниц
+          document = pdfium!.loadDocumentFromBytes(bytes);
+        }
 
 
-      ///циклом собрать массив отрендеренных страниц для отображения
-      if(page == null){
-        List<int> rotation = await getPageRotation(pathPdf: pathPdf,);
+        ///циклом собрать массив отрендеренных страниц для отображения
+        if(page == null){
+          List<int> _rotation = await getPageRotation(pathPdf: pathPdf,);
 
-        for(int i = 0; i < pageCount; i++){
+          for(int i = 0; i < pageCount; i++){
+            int realWidth = 0;
+            int realHeight = 0;
+
+            Size size = await getPageSize(pathPdf: pathPdf, page: i);
+
+
+            if(_rotation[i] == 0 || _rotation[i] == 2){
+              realWidth = (size.width).toInt();
+              realHeight = (size.height).toInt();
+            }else{
+              realWidth = _rotation[i] == 0 || _rotation[i] == 2 ? screenWidth.toInt() : screenHeight.toInt();
+              realHeight = _rotation[i] != 0 && _rotation[i] != 2 ? screenWidth.toInt() : screenHeight.toInt();
+            }
+
+            final _bytes = document!.loadPage(i).renderPageAsBytes(realWidth * 2, realHeight * 2, flags: 0,);
+            final img.Image image = img.Image.fromBytes(
+              width: realWidth * 2,
+              height: realHeight * 2,
+              bytes: _bytes.buffer,
+              order: img.ChannelOrder.bgra,
+              numChannels: 4,
+            );
+            final _bytes2 = img.encodeJpg(image, quality: 100);
+
+            // document!.loadPage(i).
+            // savePageAsJpg('${directory.path}${Platform.pathSeparator}$fileName$i.jpg', qualityJpg: 100, flags: 0, width: realWidth * 2, height: realHeight * 2, backgroundColor: int.parse((color ?? '#FFFFFFFF').replaceAll('#', '0x')))
+            //     .closePage();
+            // final _bytes = await File('${directory.path}${Platform.pathSeparator}$fileName$i.jpg').readAsBytes();
+            filesPaths.add(_bytes2);
+          }
+        }
+        else{
+          if(visiblyPage == page){
+          List<int> rotation = await getPageRotation(pathPdf: pathPdf, page: page);
+          Size size = await getPageSize(pathPdf: pathPdf, page: page);
           int realWidth = 0;
           int realHeight = 0;
-
-          Size size = await getPageSize(pathPdf: pathPdf, page: i);
-
-
-          if(rotation[i] == 0 || rotation[i] == 2){
+          if(rotation.first == 0 || rotation.first == 2){
             realWidth = (size.width).toInt();
             realHeight = (size.height).toInt();
           }else{
-            realWidth = rotation[i] == 0 || rotation[i] == 2 ? screenWidth.toInt() : screenHeight.toInt();
-            realHeight = rotation[i] != 0 && rotation[i] != 2 ? screenWidth.toInt() : screenHeight.toInt();
+            realWidth = rotation.first == 0 || rotation.first == 2 ? screenWidth.toInt() : screenHeight.toInt();
+            realHeight = rotation.first != 0 && rotation.first != 2 ? screenWidth.toInt() : screenHeight.toInt();
           }
-          document!.loadPage(i).
-          savePageAsJpg('${directory.path}${Platform.pathSeparator}$fileName$i.jpg', qualityJpg: 100, flags: 0, width: realWidth * 2, height: realHeight * 2, backgroundColor: int.parse((color ?? '#FFFFFFFF').replaceAll('#', '0x')))
-              .closePage();
-          final _bytes = await File('${directory.path}${Platform.pathSeparator}$fileName$i.jpg').readAsBytes();
-          filesPaths.add(_bytes);
-        }
-      }
-      else{
-        List<int> rotation = await getPageRotation(pathPdf: pathPdf, page: page);
-        Size size = await getPageSize(pathPdf: pathPdf, page: page);
-        int realWidth = 0;
-        int realHeight = 0;
-        if(rotation.first == 0 || rotation.first == 2){
-          realWidth = (size.width).toInt();
-          realHeight = (size.height).toInt();
-        }else{
-          realWidth = rotation.first == 0 || rotation.first == 2 ? screenWidth.toInt() : screenHeight.toInt();
-          realHeight = rotation.first != 0 && rotation.first != 2 ? screenWidth.toInt() : screenHeight.toInt();
-        }
 
-        document!.loadPage(page).
-        savePageAsJpg('${directory.path}${Platform.pathSeparator}$fileName$page.jpg', qualityJpg: 100, flags: 0, width: realWidth * 2, height: realHeight * 2,).closePage();
-        final _bytes = File('${directory.path}${Platform.pathSeparator}$fileName$page.jpg').readAsBytesSync();
-        filesPaths.add(_bytes);
+          final _bytes = document!.loadPage(page).renderPageAsBytes(realWidth * 2, realHeight * 2, flags: 0,);
+          final img.Image image = img.Image.fromBytes(
+            width: realWidth * 2,
+            height: realHeight * 2,
+            bytes: _bytes.buffer,
+            order: img.ChannelOrder.bgra,
+            numChannels: 4,
+          );
+          final _bytes2 = img.encodeJpg(image, quality: 100);
+
+          //document!
+          //.loadPage(page)
+          //.savePageAsJpg('${directory.path}${Platform.pathSeparator}$fileName$page.jpg', qualityJpg: 100, flags: 0, width: realWidth * 2, height: realHeight * 2,).closePage();
+          // final _bytes = File('${directory.path}${Platform.pathSeparator}$fileName$page.jpg').readAsBytesSync();
+          filesPaths.add(_bytes2);
+          }else{
+            print('пропустили загрузку');
+            filesPaths.add(Uint8List(0));
+          }
+        }
       }
-    }
     return filesPaths;
   }
 
@@ -534,6 +573,10 @@ class LoadPdf{
                 }
                 if(index == count){
                   reload = false;
+                }
+                if(index > 12){
+                  ///очищаем память
+                  oldListPaths[index - 2] = Uint8List(0);
                 }
                 if(_snapshot.hasData){
                   final _child = Container(
