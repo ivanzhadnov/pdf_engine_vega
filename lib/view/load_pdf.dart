@@ -142,7 +142,7 @@ class LoadPdf{
       //String fileName = 'render';
       int pageCount = page != null ? 0 : await getPageCount(pathPdf:  _path);
 
-      if(Platform.isIOS || Platform.isAndroid){
+      if(Platform.isIOS || Platform.isAndroid || Platform.isWindows){
 
         ///добавляем аннотации если они есть или были нарисованы
         _path =  await syficionAddAnnotation(pathPdf: pathPdf, annotations: annotations, bookmarks: bookmarks, page: page, addContent: false);
