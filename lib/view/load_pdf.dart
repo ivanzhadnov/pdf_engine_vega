@@ -297,8 +297,6 @@ class LoadPdf{
 
   ///индикация активной страницы и перелистывание страниц
   int visiblyPage = 0;
-  //ScrollController scrollController = ScrollController();
-  //CarouselController scrollController = CarouselController();
   PageController scrollController = PageController(
       keepPage: false, viewportFraction: 0.73,
   );
@@ -590,6 +588,7 @@ class LoadPdf{
                               _snapshot.data!.first,
                               key: globalKeys[index],
                               filterQuality: FilterQuality.high,
+                                errorBuilder: (BuildContext, Object, StackTrace)=>Container()
                             ),
                             ///рисуем выделения найденого текста
                             ...findedFragments.where((el) => el.pageIndex == index).toList().map((e) => Positioned(
