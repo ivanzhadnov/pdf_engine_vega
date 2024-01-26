@@ -356,6 +356,7 @@ class LoadPdf{
     required AnnotState mode,
     ///требуемая к выполнению внешняя функция
     dynamic func,
+    bool scaleEnabled = true
   }){
 
     pathDocument = pathPdf;
@@ -592,8 +593,8 @@ class LoadPdf{
                             ),
                             ///рисуем выделения найденого текста
                             ...findedFragments.where((el) => el.pageIndex == index).toList().map((e) => Positioned(
-                                top:e.bounds!.top - 2,
-                                left: e.bounds!.left - 2,
+                                top:e.bounds!.top / aspectCoefY,
+                                left: e.bounds!.left / aspectCoefX,
                                 child: Container(
                                   color: Colors.yellow.withOpacity(0.7),
                                   width: (e.bounds!.width > 0 ? e.bounds!.width : 30),
@@ -615,16 +616,14 @@ class LoadPdf{
                             ...annotations!.where((element) =>
                             element.page == index)
                                 .toList().map((e){
-                              e.aspectCoefX = aspectCoefX;
-                              e.aspectCoefY = aspectCoefY;
+
                               return FingerPaint(line: e.points.map((p) => Offset(p.x  * aspectCoefX, p.y  * aspectCoefY)).toList(), mode: e.subject == 'selectText' ? AnnotState.selectText : AnnotState.freeForm, color: Color(e.color!.toInt()) , thickness: e.border!.width, );
                             }).toList(),
                             ///рисуем обводку у выделлной аннотации
                             ...annotations!.where((element) =>
                             element.uuid == selectedUuid && element.page == index)
                                 .toList().map((e){
-                              e.aspectCoefX = aspectCoefX;
-                              e.aspectCoefY = aspectCoefY;
+
                               return FingerPaint(line: e.points.map((p) => Offset(p.x  * aspectCoefX, p.y  * aspectCoefY)).toList(), mode: AnnotState.freeForm, color: Colors.orangeAccent , thickness: 4, );
                             }).toList(),
 
@@ -696,11 +695,18 @@ class LoadPdf{
             width: returnWidth(),
             alignment: Alignment.center,
             child: InteractiveViewer(
+              scaleEnabled: scaleEnabled,
+              panEnabled: !scaleEnabled,
                   trackpadScrollCausesScale: false,
                   boundaryMargin: const EdgeInsets.all(0.0),
                   minScale: 1,
                   maxScale: 5,
-                  onInteractionStart: (v){},
+                  onInteractionStart: (v){
+                    // const snackBar = SnackBar(
+                    //   content: Text('For zoom press "Ctrl"'),
+                    // );
+                    // ScaffoldMessenger.of(context).showSnackBar(snackBar);
+                  },
                   onInteractionEnd: (v){},
                   child: PageView(
                     padEnds: false,
@@ -724,7 +730,6 @@ class LoadPdf{
                     children: _children,
                   ),
                 ),
-
           );
         });
   }
