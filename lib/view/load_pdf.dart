@@ -171,8 +171,8 @@ class LoadPdf{
             final pdfWidth = screenWidth * 2;
             final pdfHeight = screenHeight * 2;
             final image = await pdfPage.render(
-              width: pdfWidth,
-              height: pdfHeight,
+              width: pdfPage.width,
+              height: pdfPage.height,
               format: PdfPageImageFormat.jpeg,
               backgroundColor: color ?? '#FFFFFFFF',
               quality: 100,
