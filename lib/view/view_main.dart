@@ -41,8 +41,16 @@ class PDFViewerState extends State<PDFViewer> {
     return SizedBox(
           width: widget.width,
           height: widget.height,
-          child: load.childs(pathPdf: widget.path, mode: AnnotState.inactive, bookmarks: [], annotations: [], func: ()=>setState((){}), height:widget.height , width: widget.width),
-        );
+          child: load.childs(
+              pathPdf: widget.path,
+              mode: AnnotState.inactive,
+              bookmarks: [],
+              annotations: [],
+              func: ()=>setState((){}),
+              height:widget.height ,
+              width: widget.width
+          ),
+    );
   }
 }
 

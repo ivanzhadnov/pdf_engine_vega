@@ -62,6 +62,8 @@ List<MatchedItemMy> searchTextInTextLines({required List<List<TextLine>> textLin
                 find.bounds = textLines[i][ii].wordCollection[iii].bounds;
                 find.pageIndex = textLines[i][ii].pageIndex;
                 findedPoint.add(find);
+                //print(textLines[i][ii].wordCollection[iii].text);
+                //print(textLines[i][ii].wordCollection[iii].bounds.topLeft);
               }
           }
         }
