@@ -283,7 +283,7 @@ class LoadPdf{
           // final _bytes = File('${directory.path}${Platform.pathSeparator}$fileName$page.jpg').readAsBytesSync();
           filesPaths.add(_bytes2);
           }else{
-            print('пропустили загрузку');
+            //print('пропустили загрузку');
             filesPaths.add(Uint8List(0));
           }
         }
@@ -662,7 +662,8 @@ class LoadPdf{
                             }).toList(),
                             ///указатель ластика
                             if(mode == AnnotState.erase && index == visiblyPage) AnnotEraser(eraseRadius: eraseRadius, erasePosition: erasePosition,),
-                            SelectionArea(
+                            if(mode == AnnotState.selectText)SelectionArea(
+
                                 onSelectionChanged: (v){
                                   //print(v!.plainText);
                                 },
@@ -675,7 +676,7 @@ class LoadPdf{
                                     && textLines[visiblyPage][i].bounds.bottom <= endtSelectTextPoint.dy + 10
                                     ){selectedTextLines.add(textLines[visiblyPage][i]);}
                                   }
-                                  final selectedWords = [];
+                                  List<sf.TextWord> selectedWords = [];
                                   for(int i=0; i< selectedTextLines.length; i++){
                                     for(int ii = 0; ii < selectedTextLines[i].wordCollection.length; ii++){
                                       if(i == 0 && selectedTextLines[i].wordCollection[ii].bounds.left >= startSelectTextPoint.dx - 10){
@@ -706,16 +707,75 @@ class LoadPdf{
                                         type: ContextMenuButtonType.custom,
                                         label: 'Закладка',
                                       ),
-                                      if(mode == AnnotState.selectText)ContextMenuButtonItem(
+                                      ContextMenuButtonItem(
                                         onPressed: () {
+                                          ///берем массив и пока строка не изменилась набираем края первого прямоугольника удаляя строки из массива
+                                          ///набираем второй прямоугольник, пока его строка не изменилась, а потом меняем местами углы
+                                          ///набираем третий пока строка не изменилась не меняя местями углы и так до последней строки
+                                          ///последнюю строку
+List<List<sf.TextWord>> arr = [];
+                                          for(int i=0; i< selectedWords.length; i++){
+                                          if(i == 0 || selectedWords[i].bounds.top != arr.last.last.bounds.top){
+                                            arr.add(<sf.TextWord>[]);
+                                          }
+                                          arr.last.add(selectedWords[i]);
+                                          }
+print('выделено строк ${arr.length}');
+                                          for(int i = 0; i < arr.length; i++){
+                                            if(arr[i].length == 1){
+                                              arr[i].add(arr[i].last);
+                                            }
+                                            if(arr[i].length > 2){
+                                              //arr[i].removeRange(1, arr.length - 1);
+                                              arr[i] = [arr[i].first, arr[i].last];
+                                            }
+                                            if(i%2 != 0){
+                                              arr[i] =  List.from(arr[i].reversed);
+                                            }
+                                          }
+
+                                          List<Offset> offsets = [];
+                                          for(int i = 0; i < arr.length; i++){
+                                            if(i == 0){
+                                              offsets.add(arr[i].first.bounds.bottomLeft);
+                                              offsets.add(arr[i].first.bounds.topLeft);
+                                              offsets.add(arr[i].last.bounds.topRight);
+                                              offsets.add(arr[i].last.bounds.bottomRight);
+                                            }
+                                            else if(i == arr.length - 1){
+                                              offsets.add(arr[i].last.bounds.topRight);
+                                              offsets.add(arr[i].last.bounds.bottomRight);
+                                              offsets.add(arr[i].first.bounds.bottomLeft);
+                                              offsets.add(arr[i].first.bounds.topLeft);
+
+                                            }else{
+                                              offsets.add(arr[i].last.bounds.topRight);
+                                              offsets.add(arr[i].last.bounds.bottomRight);
+                                            }
+                                          }
+                                          for(int i = 0; i < arr.length; i++){
+                                            if(i != 0 && i != arr.length - 1){
+                                              offsets.add(arr[i].first.bounds.bottomLeft);
+                                              offsets.add(arr[i].first.bounds.topLeft);
+                                            }
+
+                                          }
+///flutter: Offset(231.4, 77.4)
+// flutter: Offset(529.2, 77.4)
+// flutter: Offset(503.0, 89.4)
+// flutter: Offset(231.4, 89.4)
+// flutter: Offset(231.4, 101.4)
+// flutter: Offset(231.4, 101.4)
+
+
 
                                           lines[visiblyPage].add(DrawLineItem(subject: 'selectText', uuid: Uuid().v4()));
                                           lines[visiblyPage].last.text = selectedWords.map((e) => e.text).toList().join( ' ');
                                           for(int i = 0; i < selectedWords.length; i++){
-                                            lines[visiblyPage].last.line.addAll(boundsToOffsets(selectedWords[i].bounds));
+                                            lines[visiblyPage].last.line = offsets;
 
                                           }
-                                          print(lines[visiblyPage].last.line);
+                                          //print(lines[visiblyPage].last.line);
 
                                           ///заводим массив массивов
                                           List<List<Rect>> rects = [];
@@ -736,7 +796,7 @@ class LoadPdf{
                                 },
                                 child: Stack(
                                   children: [
-                                    if(textLines.isNotEmpty)...textLines[visiblyPage].map((line){
+                                    if(textLines.isNotEmpty && mode == AnnotState.selectText)...textLines[visiblyPage].map((line){
                                       return Positioned(
                                         top:line.bounds.top,
                                         left: line.bounds.left,
@@ -819,13 +879,9 @@ class LoadPdf{
                   //boundaryMargin: const EdgeInsets.all(0.0),
                   minScale: 1,
                   maxScale: 8,
-                  onInteractionStart: (v){
-                    // const snackBar = SnackBar(
-                    //   content: Text('For zoom press "Ctrl"'),
-                    // );
-                    // ScaffoldMessenger.of(context).showSnackBar(snackBar);
-                  },
+                  onInteractionStart: (v){},
                   onInteractionEnd: (v){},
+                  onInteractionUpdate: (v){},
                   child: PageView(
                     padEnds: false,
                     scrollBehavior: ScrollConfiguration.of(context).copyWith(
