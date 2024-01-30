@@ -202,7 +202,7 @@ Future<String> syficionAddAnnotation({required String pathPdf, int? page, List<A
     for(int i = 0; i < bookmarks.length; i++){
       if(bookmarks.map((e) => e.page == i && (page == null || e.page == page)).toList().isNotEmpty){
         print('добавлена закладка');
-        document.bookmarks.insert(i, 'Bookmark page #${bookmarks[i].page}').destination = PdfDestination(document.pages[bookmarks[i].page]);
+        document.bookmarks.insert(i, bookmarks[i].content != '' ? bookmarks[i].content : 'Bookmark page #${bookmarks[i].page}').destination = PdfDestination(document.pages[bookmarks[i].page]);
       }
     }
 

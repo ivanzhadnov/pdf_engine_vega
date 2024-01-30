@@ -649,7 +649,6 @@ class LoadPdf{
                             ...annotations.where((element) =>
                             element.uuid == selectedUuid && element.page == index)
                                 .toList().map((e){
-
                               return FingerPaint(line: e.points.map((p) => Offset(p.x  * aspectCoefX, p.y  * aspectCoefY)).toList(), mode: AnnotState.freeForm, color: Colors.orangeAccent , thickness: 4, );
                             }).toList(),
 
@@ -691,28 +690,48 @@ class LoadPdf{
                                     }
 
                                   }
-                                  for(int i = 0; i<selectedWords.length; i++){
-                                    print(selectedWords[i].text);
-                                  }
+
 
                                   return AdaptiveTextSelectionToolbar.buttonItems(
                                     buttonItems: <ContextMenuButtonItem>[
                                       ContextMenuButtonItem(
                                         onPressed: () {
-                                          // Other action
+                                          bookmarks!.add(BookMarkPDF(
+                                            page: visiblyPage,
+                                            offset: const Offset(10.0, 0.0),
+                                            content: selectedWords.map((e) => e.text).toList().join( ' ')
+                                          ),);
+                                          func();
                                         },
                                         type: ContextMenuButtonType.custom,
                                         label: 'Закладка',
                                       ),
-                                      ContextMenuButtonItem(
+                                      if(mode == AnnotState.selectText)ContextMenuButtonItem(
                                         onPressed: () {
-                                          // Other action
+
+                                          lines[visiblyPage].add(DrawLineItem(subject: 'selectText', uuid: Uuid().v4()));
+                                          lines[visiblyPage].last.text = selectedWords.map((e) => e.text).toList().join( ' ');
+                                          for(int i = 0; i < selectedWords.length; i++){
+                                            lines[visiblyPage].last.line.addAll(boundsToOffsets(selectedWords[i].bounds));
+
+                                          }
+                                          print(lines[visiblyPage].last.line);
+
+                                          ///заводим массив массивов
+                                          List<List<Rect>> rects = [];
+                                          ///смотрим, если значение высоты отличается, пишем вследующий массив массива
+                                          ///далее первую и последнюю строки не трогаем
+                                          ///а все что по середине четные переворачиваем наоборот
+
+
+                                          func();
                                         },
                                         type: ContextMenuButtonType.custom,
                                         label: 'Аннотация',
                                       ),
                                     ],
-                                    anchors: state.contextMenuAnchors,
+                                    //anchors: state.contextMenuAnchors,
+                                    anchors: state.context.findRenderObject() != null ? TextSelectionToolbarAnchors.fromSelection(renderBox: state.context.findRenderObject()! as RenderBox, startGlyphHeight: 0, endGlyphHeight: 0, selectionEndpoints: [TextSelectionPoint(Offset(startSelectTextPoint.dx, startSelectTextPoint.dy - 20), TextDirection.ltr),TextSelectionPoint(Offset(startSelectTextPoint.dx, startSelectTextPoint.dy - 20), TextDirection.ltr)]) : state.contextMenuAnchors,
                                   );
                                 },
                                 child: Stack(
@@ -843,3 +862,14 @@ extension Unique<E, Id> on List<E> {
     return list;
   }
 }
+
+  List<Offset> boundsToOffsets(Rect bounds){
+    List<Offset> points = [
+      bounds.bottomLeft,
+      bounds.topLeft,
+      bounds.topRight,
+      bounds.bottomRight,
+      bounds.bottomLeft,
+    ];
+    return points;
+  }
