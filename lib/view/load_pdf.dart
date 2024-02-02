@@ -713,14 +713,14 @@ class LoadPdf{
                                           ///набираем второй прямоугольник, пока его строка не изменилась, а потом меняем местами углы
                                           ///набираем третий пока строка не изменилась не меняя местями углы и так до последней строки
                                           ///последнюю строку
-List<List<sf.TextWord>> arr = [];
+                                          List<List<sf.TextWord>> arr = [];
                                           for(int i=0; i< selectedWords.length; i++){
                                           if(i == 0 || selectedWords[i].bounds.top != arr.last.last.bounds.top){
                                             arr.add(<sf.TextWord>[]);
                                           }
                                           arr.last.add(selectedWords[i]);
                                           }
-print('выделено строк ${arr.length}');
+                                          print('выделено строк ${arr.length}');
                                           for(int i = 0; i < arr.length; i++){
                                             if(arr[i].length == 1){
                                               arr[i].add(arr[i].last);
@@ -892,7 +892,7 @@ print('выделено строк ${arr.length}');
                         PointerDeviceKind.mouse,
                       },
                     ),
-                    physics: mode == AnnotState.inactive ? AlwaysScrollableScrollPhysics() : NeverScrollableScrollPhysics(),
+                    //physics: mode == AnnotState.inactive ? AlwaysScrollableScrollPhysics() : NeverScrollableScrollPhysics(),
                     scrollDirection: scrollDirection!,
                     pageSnapping: false,
                     controller: scrollController,
