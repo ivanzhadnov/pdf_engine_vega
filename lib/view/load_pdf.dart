@@ -157,7 +157,7 @@ class LoadPdf{
             final pdfPage = await pdfDocument!.getPage(i);
             double pdfWidth = screenWidth * 2;
             double pdfHeight = screenHeight * 2;
-            if(Platform.isWindows){
+            if(Platform.isWindows || Platform.isAndroid){
               pdfWidth = pdfPage.width;
               pdfHeight = pdfPage.height;
             }
@@ -177,7 +177,7 @@ class LoadPdf{
             final pdfPage = await pdfDocument!.getPage(page + 1);
             double pdfWidth = screenWidth * 2;
             double pdfHeight = screenHeight * 2;
-            if(Platform.isWindows){
+            if(Platform.isWindows || Platform.isAndroid){
               pdfWidth = pdfPage.width;
               pdfHeight = pdfPage.height;
             }
