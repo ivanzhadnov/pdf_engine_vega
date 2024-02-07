@@ -40,7 +40,7 @@ class LoadPdf{
     ///получаем данные об установленой ОС, архитектуре процессора, разрядности процессора
     //CurrentSystemInformation? sysInfo = Platform.isIOS || Platform.isWindows ? null : CurrentSystemInformation();
     CurrentSystemInformation? sysInfo;
-    if (!(Platform.isIOS || Platform.isWindows)) sysInfo = CurrentSystemInformation();
+    if (!(Platform.isIOS || Platform.isWindows || Platform.isAndroid)) sysInfo = CurrentSystemInformation();
 
     try{
       if(!Platform.isMacOS)pdfium!.dispose();

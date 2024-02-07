@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -26,11 +27,17 @@ class PDFViewerState extends State<PDFViewer> {
 
   ///объявляем класс для работы с загрузкой указанного ПДФ файла
   LoadPdf load = LoadPdf();
-
+  late Timer loadControl;
   @override
   void initState() {
     super.initState();
-    RawKeyboard.instance.addListener(_keyboardCallback);
+    //RawKeyboard.instance.addListener(_keyboardCallback);
+    loadControl = Timer.periodic(const Duration(milliseconds: 100), (timer) {
+      if(load.loadComplite){
+        setState(() {});
+        loadControl.cancel();
+      }
+    });
   }
   bool scaleEnabled = false;
 
