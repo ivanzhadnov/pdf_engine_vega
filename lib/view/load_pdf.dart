@@ -310,7 +310,7 @@ class LoadPdf{
   ///индикация активной страницы и перелистывание страниц
   int visiblyPage = 0;
   PageController scrollController = PageController(
-      keepPage: false, viewportFraction: 0.73,
+      keepPage: true, viewportFraction: 0.73,
   );
 
   ///переменные для работы с ластиком
@@ -854,12 +854,12 @@ class LoadPdf{
           returnHeight(){
             if(screenWidth < height!){
               scrollController = PageController(
-                keepPage: false, viewportFraction: 1,
+                keepPage: true, viewportFraction: 1,
               );
               return rotation == 0 || rotation == 2 ? screenHeight : screenWidth;
             }else{
               scrollController = PageController(
-                keepPage: false, viewportFraction: 0.73,
+                keepPage: true, viewportFraction: 0.73,
               );
               //return rotation == 0 || rotation == 2 ? height : width! * 0.77;
               return rotation == 0 || rotation == 2 ? screenHeight : screenWidth;

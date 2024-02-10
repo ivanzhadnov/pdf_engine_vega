@@ -27,6 +27,7 @@ class PDFViewerState extends State<PDFViewer> {
 
   ///объявляем класс для работы с загрузкой указанного ПДФ файла
   LoadPdf load = LoadPdf();
+  LoadPdf load2 = LoadPdf();
   late Timer loadControl;
   @override
   void initState() {
@@ -36,8 +37,10 @@ class PDFViewerState extends State<PDFViewer> {
       if(load.loadComplite){
         setState(() {});
         loadControl.cancel();
+
       }
     });
+
   }
   bool scaleEnabled = false;
 
@@ -89,26 +92,43 @@ class PDFViewerState extends State<PDFViewer> {
 
     return Transform.scale(
         ///todo посчитать коэфф увеличения
-        //scale: MediaQuery.of(context).size.width / load.screenWidth * load.aspectRatioDoc,
-      scale: zoomScale(),
+        scale: MediaQuery.of(context).size.width > MediaQuery.of(context).size.height ? MediaQuery.of(context).size.width / load.screenWidth * load.aspectRatioDoc : zoomScale(),
+      //scale: zoomScale(),
     alignment: Alignment.topLeft,
-    child: Container(
-        width: widget.width,
-        height: widget.height,
-        alignment: Alignment.topLeft,
-        child: load.childs(
+    child: SingleChildScrollView(
+      child: Column(
+        children: [
+          load.childs(
+            scaleEnabled: Platform.isAndroid || Platform.isIOS ? true: scaleEnabled,
+            pathPdf: widget.path,
+            mode: AnnotState.inactive,
+            bookmarks: [],
+            annotations: [],
+            func: ()=>setState((){
+              //scrollControllerAdd.jumpToPage(load.visiblyPage + 1);
+              if(load.visiblyPage < load.count){
+                load2.scrollController.jumpToPage(load.visiblyPage + 1);
+                //load2.scrollController.animateTo(load.scrollController.position.pixels  + load.screenHeight, duration: Duration(milliseconds: 100), curve: Curves.linear);
+              }
+
+            }),
+            width: widget.width,
+            height: widget.height,
+          ),
+          if(load.visiblyPage < load.count) load2.childs(
             scaleEnabled: Platform.isAndroid || Platform.isIOS ? true: scaleEnabled,
             pathPdf: widget.path,
             mode: AnnotState.inactive,
             bookmarks: [],
             annotations: [],
             func: ()=>setState((){}),
-            //height:widget.height ,
-            //width: widget.height
-          width: widget.width,
-          height: widget.height,
-        ),
+            width: widget.width,
+            height: widget.height,
+          ),
+        ],
+      ),
     )
+
     );
   }
 }
