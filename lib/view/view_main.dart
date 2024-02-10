@@ -89,7 +89,8 @@ class PDFViewerState extends State<PDFViewer> {
 
     return Transform.scale(
         ///todo посчитать коэфф увеличения
-        scale: MediaQuery.of(context).size.width / load.screenWidth * load.aspectRatioDoc,
+        //scale: MediaQuery.of(context).size.width / load.screenWidth * load.aspectRatioDoc,
+      scale: zoomScale(),
     alignment: Alignment.topLeft,
     child: Container(
         width: widget.width,
