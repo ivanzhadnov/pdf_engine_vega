@@ -31,7 +31,7 @@ class PDFViewerState extends State<PDFViewer> {
   @override
   void initState() {
     super.initState();
-    //RawKeyboard.instance.addListener(_keyboardCallback);
+    RawKeyboard.instance.addListener(_keyboardCallback);
     loadControl = Timer.periodic(const Duration(milliseconds: 100), (timer) {
       if(load.loadComplite){
         setState(() {});
