@@ -49,33 +49,33 @@ class LoadPdf{
     String libraryPath = '';
     final directory = await getApplicationDocumentsDirectory();
     if(Platform.isAndroid){
-      String libAsset = 'assets/libpdf/libpdfium_android.so';
-      // if(sysInfo!.kernelBitness == 32){
-      //   if(sysInfo.kernelArchitecture == ProcessorArchitecture.x86){
-      //     libAsset = 'assets/libpdf/libpdfium_android_32_x86.so';
-      //   }else{
-      //     libAsset = 'assets/libpdf/libpdfium_android_32.so';
-      //   }
-      //
+      // String libAsset = 'assets/libpdf/libpdfium_android.so';
+      // // if(sysInfo!.kernelBitness == 32){
+      // //   if(sysInfo.kernelArchitecture == ProcessorArchitecture.x86){
+      // //     libAsset = 'assets/libpdf/libpdfium_android_32_x86.so';
+      // //   }else{
+      // //     libAsset = 'assets/libpdf/libpdfium_android_32.so';
+      // //   }
+      // //
+      // // }
+      // final String localPath = directory.path;
+      // File file = File('$localPath/libpdfium_android.so');
+      // bool exist = await file.exists();
+      // if(!exist){
+      //   print('файла библиотеки нет, поэтому копируем его из ассет');
+      //   final asset = await rootBundle.load(libAsset);
+      //   final buffer = asset.buffer;
+      //   await file.writeAsBytes(buffer.asUint8List(asset.offsetInBytes, asset.lengthInBytes));
       // }
-      final String localPath = directory.path;
-      File file = File('$localPath/libpdfium_android.so');
-      bool exist = await file.exists();
-      if(!exist){
-        print('файла библиотеки нет, поэтому копируем его из ассет');
-        final asset = await rootBundle.load(libAsset);
-        final buffer = asset.buffer;
-        await file.writeAsBytes(buffer.asUint8List(asset.offsetInBytes, asset.lengthInBytes));
-      }
-      libraryPath = file.path;
+      // libraryPath = file.path;
     }
     else if(Platform.isMacOS){
       libraryPath = 'libpdfium.dylib';
     }
     else if(Platform.isIOS){
-      final String localPath = directory.path;
-      File file = File(path.join(localPath, 'libpdfium_ios.dylib'));
-      libraryPath = file.path;
+      // final String localPath = directory.path;
+      // File file = File(path.join(localPath, 'libpdfium_ios.dylib'));
+      // libraryPath = file.path;
     }
     else if(Platform.isWindows){
       libraryPath = path.join(Directory.current.path, 'pdfium_win.dll');
@@ -158,8 +158,8 @@ class LoadPdf{
             double pdfWidth = screenWidth * 2;
             double pdfHeight = screenHeight * 2;
             if(Platform.isWindows || Platform.isAndroid){
-              pdfWidth = pdfPage.width;
-              pdfHeight = pdfPage.height;
+              pdfWidth = pdfPage.width * 4;
+              pdfHeight = pdfPage.height * 4;
             }
             final image = await pdfPage.render(
               width: pdfWidth,
@@ -178,8 +178,8 @@ class LoadPdf{
             double pdfWidth = screenWidth * 2;
             double pdfHeight = screenHeight * 2;
             if(Platform.isWindows || Platform.isAndroid){
-              pdfWidth = pdfPage.width;
-              pdfHeight = pdfPage.height;
+              pdfWidth = pdfPage.width * 4;
+              pdfHeight = pdfPage.height * 4;
             }
             final image = await pdfPage.render(
               width: pdfWidth,
