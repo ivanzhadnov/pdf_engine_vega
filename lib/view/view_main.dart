@@ -33,7 +33,7 @@ class PDFViewerState extends State<PDFViewer> {
   void initState() {
     super.initState();
     //RawKeyboard.instance.addListener(_keyboardCallback);
-    loadControl = Timer.periodic(const Duration(milliseconds: 100), (timer) {
+    loadControl = Timer.periodic(const Duration(milliseconds: 300), (timer) {
       if(load.loadComplite){
         setState(() {});
         loadControl.cancel();
@@ -76,16 +76,14 @@ class PDFViewerState extends State<PDFViewer> {
 
   double zoomScale(){
     //print(MediaQuery.of(context).size.width > viewPdf.screenWidth);
-    double scale = 0.8;
+    double scale = (Platform.isIOS || Platform.isAndroid) ? 1 : 0.8;
 
     if(MediaQuery.of(context).size.width > load.screenWidth){
-
-
           ///расчет когда поворота нет
           //scale: 2.45, обычное отображение портрет MediaQuery.of(context).size.width / (viewPdf.screenWidth + 10)
           scale = MediaQuery.of(context).size.width / (load.screenWidth + 10);
-
-
+    }else{
+      //scale = 0.5;
     }
     return scale;
   }
@@ -103,8 +101,7 @@ class PDFViewerState extends State<PDFViewer> {
     alignment: Alignment.topLeft,
     child:
       SingleChildScrollView(
-      child: Column(
-        children: [
+      child:
           load.childs(
             scaleEnabled: Platform.isAndroid || Platform.isIOS ? true: scaleEnabled,
             pathPdf: widget.path,
@@ -113,27 +110,15 @@ class PDFViewerState extends State<PDFViewer> {
             annotations: [],
             func: ()=>setState((){
               //scrollControllerAdd.jumpToPage(load.visiblyPage + 1);
-              if((Platform.isIOS || Platform.isAndroid) &&load.visiblyPage < load.count){
-                load2.scrollController.jumpToPage(load.visiblyPage + 1);
-                //load2.scrollController.animateTo(load.scrollController.position.pixels  + load.screenHeight, duration: Duration(milliseconds: 100), curve: Curves.linear);
-              }
+              // if((Platform.isIOS) && load.visiblyPage < load.count){
+              //   load2.scrollController.jumpToPage(load.visiblyPage + 1);
+              //   //load2.scrollController.animateTo(load.scrollController.position.pixels  + load.screenHeight, duration: Duration(milliseconds: 100), curve: Curves.linear);
+              // }
 
             }),
             width: widget.width,
             height: widget.height,
           ),
-          if((Platform.isIOS || Platform.isAndroid) && load.visiblyPage < load.count) load2.childs(
-            scaleEnabled: Platform.isAndroid || Platform.isIOS ? true: scaleEnabled,
-            pathPdf: widget.path,
-            mode: AnnotState.inactive,
-            bookmarks: [],
-            annotations: [],
-            func: ()=>setState((){}),
-            width: widget.width,
-            height: widget.height,
-          ),
-        ],
-      ),
    )
 
     );
