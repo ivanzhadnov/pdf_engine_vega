@@ -32,16 +32,17 @@ class PDFViewerState extends State<PDFViewer> {
   @override
   void initState() {
     super.initState();
-    RawKeyboard.instance.addListener(_keyboardCallback);
+    //RawKeyboard.instance.addListener(_keyboardCallback);
     loadControl = Timer.periodic(const Duration(milliseconds: 100), (timer) {
       if(load.loadComplite){
         setState(() {});
         loadControl.cancel();
-
+        RawKeyboard.instance.addListener(_keyboardCallback);
       }
     });
 
   }
+
   bool scaleEnabled = false;
 
   void _keyboardCallback(RawKeyEvent keyEvent) {
@@ -66,12 +67,16 @@ class PDFViewerState extends State<PDFViewer> {
 
   @override
   void dispose(){
+    try{
+      loadControl.cancel();
+     RawKeyboard.instance.removeListener(_keyboardCallback);
+    }catch(e){}
     super.dispose();
   }
 
   double zoomScale(){
     //print(MediaQuery.of(context).size.width > viewPdf.screenWidth);
-    double scale = 1.0;
+    double scale = 0.8;
 
     if(MediaQuery.of(context).size.width > load.screenWidth){
 
@@ -89,13 +94,15 @@ class PDFViewerState extends State<PDFViewer> {
 
   @override
   Widget build(BuildContext context) {
-
-    return Transform.scale(
+    return
+     Transform.scale(
         ///todo посчитать коэфф увеличения
-        scale: MediaQuery.of(context).size.width > MediaQuery.of(context).size.height ? MediaQuery.of(context).size.width / load.screenWidth * load.aspectRatioDoc : zoomScale(),
+        scale: (Platform.isIOS || Platform.isAndroid) && MediaQuery.of(context).size.width > MediaQuery.of(context).size.height ? MediaQuery.of(context).size.width / load.screenWidth * load.aspectRatioDoc : zoomScale(),
       //scale: zoomScale(),
+       //scale: 1,
     alignment: Alignment.topLeft,
-    child: SingleChildScrollView(
+    child:
+      SingleChildScrollView(
       child: Column(
         children: [
           load.childs(
@@ -106,7 +113,7 @@ class PDFViewerState extends State<PDFViewer> {
             annotations: [],
             func: ()=>setState((){
               //scrollControllerAdd.jumpToPage(load.visiblyPage + 1);
-              if(load.visiblyPage < load.count){
+              if((Platform.isIOS || Platform.isAndroid) &&load.visiblyPage < load.count){
                 load2.scrollController.jumpToPage(load.visiblyPage + 1);
                 //load2.scrollController.animateTo(load.scrollController.position.pixels  + load.screenHeight, duration: Duration(milliseconds: 100), curve: Curves.linear);
               }
@@ -115,7 +122,7 @@ class PDFViewerState extends State<PDFViewer> {
             width: widget.width,
             height: widget.height,
           ),
-          if(load.visiblyPage < load.count) load2.childs(
+          if((Platform.isIOS || Platform.isAndroid) && load.visiblyPage < load.count) load2.childs(
             scaleEnabled: Platform.isAndroid || Platform.isIOS ? true: scaleEnabled,
             pathPdf: widget.path,
             mode: AnnotState.inactive,
@@ -127,7 +134,7 @@ class PDFViewerState extends State<PDFViewer> {
           ),
         ],
       ),
-    )
+   )
 
     );
   }
