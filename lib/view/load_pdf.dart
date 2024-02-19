@@ -806,7 +806,7 @@ class LoadPdf{
                   onInteractionUpdate: (v){},
                   child: PageView(
 
-                    padEnds: false,
+                    padEnds: true,
                     scrollBehavior: ScrollConfiguration.of(context).copyWith(
                       scrollbars: false,
                       overscroll: true,
@@ -817,7 +817,7 @@ class LoadPdf{
                     ),
                     //physics: mode == AnnotState.inactive ? AlwaysScrollableScrollPhysics() : NeverScrollableScrollPhysics(),
                     scrollDirection: scrollDirection!,
-                    pageSnapping: true,
+                    pageSnapping: false,
                     controller: scrollController,
                     reverse: false,
                     onPageChanged: (int index) {

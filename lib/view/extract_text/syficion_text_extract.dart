@@ -143,7 +143,27 @@ Future<List<int>> getPageRotation({required String pathPdf, int? page})async{
   return angles;
 }
 
+///извлечь из документа уже имеющиеся в нем закладки
+Future<List<BookMarkPDF>>getBornBookmarksFromDoc({required String pathPdf, int? page})async{
+  late Uint8List bytes;
+  List<BookMarkPDF> bookmarkList = [];
+  // try{
+  //   bytes = (await rootBundle.load(pathPdf)).buffer.asUint8List();
+  // }catch(e){
+  // bytes = (await File(pathPdf).readAsBytes());
+  // }
+  // final PdfDocument document = PdfDocument(inputBytes: bytes);
+  // PdfBookmarkBase bookmarks = document.bookmarks;
+  //
+  // print('закладок в документе ${bookmarks.count}');
+  // for(int i = 0; i < bookmarks.count; i++){
+  //   print('action ${bookmarks[i].textStyle}');
+  //   bookmarkList.add(BookMarkPDF(page: i, offset: Offset(0,0), content: bookmarks[i].title));
+  // }
 
+
+  return bookmarkList;
+}
 
 
 ///добавить аннотацию и закладки
