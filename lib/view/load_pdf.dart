@@ -436,7 +436,7 @@ class LoadPdf{
         ///выделяем текст
         if(mode == AnnotState.selectText){
           //endtSelectTextPoint = current;
-          if(textLines[visiblyPage].isNotEmpty && lines[index].isNotEmpty){
+          if(textLines.isNotEmpty && textLines[visiblyPage].isNotEmpty && lines[index].isNotEmpty){
             lines[index].last.subject = 'selectText';
             lines[index].last.line = [];
            }
