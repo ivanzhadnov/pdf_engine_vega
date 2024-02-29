@@ -31,12 +31,16 @@ import 'extract_text/syficion_text_extract.dart';
 ///обработка отображения и добавления аннотирования в документ
 class LoadPdf{
 
-  LoadPdf(){setPdfium();}
+  LoadPdf(){
+    setPdfium();
+  }
 
   PdfiumWrap? pdfium;
   ///set pdfium
   Future<bool>setPdfium()async{
-
+    try{
+      if(Platform.isAndroid && !pdfDocument!.isClosed)await pdfDocument!.close();
+    }catch(e){}
     ///получаем данные об установленой ОС, архитектуре процессора, разрядности процессора
     //CurrentSystemInformation? sysInfo = Platform.isIOS || Platform.isWindows ? null : CurrentSystemInformation();
     CurrentSystemInformation? sysInfo;
@@ -154,6 +158,7 @@ class LoadPdf{
         ///добавляем аннотации если они есть или были нарисованы
         _path =  await syficionAddAnnotation(pathPdf: pathPdf, annotations: annotations, bookmarks: bookmarks, page: page, addContent: false);
         loadComplite = true;
+
         pdfDocument ??= await PdfDocument.openFile(_path);
 
         if(page == null){
@@ -201,7 +206,7 @@ class LoadPdf{
           }
         }
 
-        //await pdfDocument!.close();
+
       }
       else{
         if(document == null){

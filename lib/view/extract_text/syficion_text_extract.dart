@@ -27,17 +27,20 @@ Future<int> getPagesCount({required String pathPdf})async{
 
 ///получить линии текста из документа для последующего выделения и отображения в оглавлении документа
 void getTextLines(List<dynamic> values){
-  final SendPort sendPort = values[0];
-  final String filePath = values[1];
-  final int page = values[2];
+  try{
+    final SendPort sendPort = values[0];
+    final String filePath = values[1];
+    final int page = values[2];
 
-  late Uint8List bytes;
-  bytes = (File(filePath).readAsBytesSync());
+    late Uint8List bytes;
+    bytes = (File(filePath).readAsBytesSync());
 
-  final PdfDocument document = PdfDocument(inputBytes: bytes);
-  final PdfTextExtractor extractor = PdfTextExtractor(document);
-  final result = extractor.extractTextLines(startPageIndex: page);
-  sendPort.send(result);
+    final PdfDocument document = PdfDocument(inputBytes: bytes);
+    final PdfTextExtractor extractor = PdfTextExtractor(document);
+    final result = extractor.extractTextLines(startPageIndex: page);
+    sendPort.send(result);
+  }catch(e){}
+
 }
 
 
