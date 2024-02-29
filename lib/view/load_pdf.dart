@@ -83,7 +83,7 @@ class LoadPdf{
     else if(Platform.isLinux){
       libraryPath = path.join(Directory.current.path, 'libpdfium.so');
     }
-    if(!Platform.isIOS)pdfium = PdfiumWrap(libraryPath: libraryPath);
+    if(!Platform.isIOS && !Platform.isAndroid)pdfium = PdfiumWrap(libraryPath: libraryPath);
     return true;
   }
 
